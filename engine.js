@@ -525,6 +525,7 @@ function weekly() {
     c.wages = wages;
   });
   if (G.mode === "manager") boardCheck();
+  maybeEvent();
   if (G.mode === "career") { careerWeekly(); lifeWeekly(); }
 }
 
@@ -878,6 +879,7 @@ function endSeason() {
   }
   leaving.forEach((p) => { if (p.club >= 0) { const c = club(p.club); c.sq = c.sq.filter((x) => x !== p.id); if (c.xi) c.xi = c.xi.map((x) => (x === p.id ? null : x)); if (c.bench) c.bench = c.bench.filter((x) => x !== p.id); } delete G.players[p.id]; });
   G.season++;
+  if (G.mode === "career") kidsSeason();
   // youth intake + finances
   G.clubs.forEach((c) => {
     const lg = leagueOf(c);

@@ -583,6 +583,13 @@ PAGES.career = () => {
     <div class="panel"><h3>Trophies &amp; awards</h3>${cr.trophies.concat(cr.awards.map((a) => ({ ...a, c: "Individual award" }))).sort((a, b) => b.s - a.s).map((t) => `<div class="trophy"><span class="chip gold">${t.s}</span><span><b>${esc(t.n)}</b> <span class="small muted">${esc(t.c)}</span></span></div>`).join("") || `<div class="empty">Your first medal is out there.</div>`}</div>
   </div></div>`;
 };
+function kidRow(k, i) {
+  const a = kidAge(k), schools = schoolList(), sc = schoolOf(k);
+  const fbText = k.g !== "boy" ? KID_JOBS[(k.name.length + k.by) % KID_JOBS.length] : k.fb ? `future footballer ${"★".repeat(clamp(Math.round((k.pot - 55) / 8), 1, 5))}` : a < 4 ? "too young to tell" : k.train ? "training, not hooked yet" : KID_JOBS[(k.name.length + k.by) % KID_JOBS.length];
+  return `<div class="kid"><div class="row" style="gap:8px"><input type="text" id="kidName${i}" value="${esc(k.name)}" aria-label="Child's name" style="width:130px"><button class="btn sm" data-a="renameKid" data-i="${i}">Save name</button><span class="small muted">${k.g === "boy" ? "Son" : "Daughter"} · age ${a} · ${esc(fbText)}</span></div>
+  ${a >= 4 && a <= 17 ? `<div class="row" style="margin-top:6px"><label class="small muted" for="school${i}" style="width:54px">School</label><select id="school${i}" data-c="kidSchool" data-i="${i}" style="flex:1;min-width:200px"><option value="">Choose a school</option>${schools.map((s) => `<option value="${s.id}" ${k.school === s.id ? "selected" : ""}>${esc(s.n)}${s.fee ? ` · about ${money(s.fee)}/yr` : " · free"}</option>`).join("")}</select></div>${sc ? `<div class="small muted" style="margin-left:62px">${esc(sc.d)}</div>` : ""}` : ""}
+  ${k.g === "boy" && a >= 4 && a <= 15 ? `<div class="row" style="margin-top:6px"><label class="small muted" for="train${i}" style="width:54px">Football</label><select id="train${i}" data-c="kidTrain" data-i="${i}" style="flex:1;min-width:200px">${TRAINING.map((t) => `<option value="${t.id}" ${(k.train || 0) === t.id ? "selected" : ""}>${esc(t.n)}${t.wk ? ` · ${money(t.wk)}/wk` : ""}</option>`).join("")}</select></div>` : ""}</div>`;
+}
 function brandBadge(id) { const b = BRAND_BY[id]; return `<span class="brand" style="background:${b.bg};color:${b.fg}">${esc(b.n)}</span>`; }
 function legacyPanel() {
   const L = G.career.life, all = L.kids.map((k, i) => ({ ...k, i })), sons = all.filter((k) => k.g === "boy" && k.fb);
@@ -597,7 +604,7 @@ PAGES.life = () => {
   if (G.mode !== "career") return PAGES.home();
   const L = G.career.life, p = pl(G.userPlayer);
   const income = (G.career.retired ? 0 : Math.round(p.wage * (0.55 - agentOf().fee))) + (L.spons ? Math.round(L.spons.wk * 0.7) : 0);
-  const upkeep = L.items.reduce((s, id) => s + SHOP_BY[id].up, 0);
+  const upkeep = L.items.reduce((s, id) => s + SHOP_BY[id].up, 0) + kidCosts(L);
   const statusText = { single: "Single", dating: `Dating ${L.partner}`, engaged: `Engaged to ${L.partner}`, married: `Married to ${L.partner}` }[L.status];
   const act = (k, label, v = "", extra = "") => `<button class="btn" data-a="life" data-k="${k}" data-v="${v}" ${L.ap <= 0 && !["breakup"].includes(k) ? "disabled" : ""}>${label}${extra ? ` <span class="small muted">${extra}</span>` : ""}</button>`;
   const cats = ["Cars", "Homes", "Luxury", "Staff"];
@@ -612,7 +619,7 @@ PAGES.life = () => {
     <div class="row">${L.status === "dating" ? act("propose", "Propose", "", "ring €30K") : ""}${L.status === "engaged" ? act("wedding", "Small wedding", "small", "€90K") + act("wedding", "Big wedding", "big", "€900K") : ""}${L.status === "married" ? act("baby", "Try for a baby") + act("family", "Family day") : ""}${L.status === "dating" || L.status === "engaged" ? `<button class="btn danger" data-a="life" data-k="breakup">Break up</button>` : ""}</div>
     ${L.partner ? `<div class="row">${act("talk", "Talk to her")}${act("gift", "Flowers", "small", "€5K")}${act("gift", "Jewellery", "big", "€50K")}</div><p class="small muted" style="margin:0">She cares about money. Reckless spending, nights out and being broke upset her. If you go broke for three weeks, she leaves.</p>` : ""}</div>
   <div class="panel stack"><h3>Free time</h3><div class="row">${act("night", "Night out with teammates", "", "€3K")}${act("charity", "Donate to charity", "", "€100K")}${L.kids.length && L.status !== "married" ? act("family", "Time with the kids") : ""}</div>
-  <h4 style="margin-top:6px">Children</h4>${L.kids.length ? L.kids.map((k, i) => `<div class="facrow"><div class="row" style="gap:8px"><input type="text" id="kidName${i}" value="${esc(k.name)}" aria-label="Child's name" style="width:140px"><span class="small muted">${k.g === "boy" ? "Son" : "Daughter"} · age ${G.season - k.by}${k.fb ? ` · future footballer ${"★".repeat(clamp(Math.round((k.pot - 55) / 8), 1, 5))}` : ` · ${KID_JOBS[(k.name.length + k.by) % KID_JOBS.length]}`}</span></div><button class="btn sm" data-a="renameKid" data-i="${i}">Save name</button></div>`).join("") : `<div class="small muted">No children yet. Not every child takes after you, but a son who loves football can carry on your career when you retire.</div>`}</div></div>
+  <h4 style="margin-top:6px">Children</h4>${L.kids.length ? L.kids.map((k, i) => kidRow(k, i)).join("") : `<div class="small muted">No children yet. Not every child takes after you, but a son who trains from an early age can become a footballer and carry on your career when you retire.</div>`}</div></div>
   <div class="panel" style="margin-bottom:16px"><div class="panel-h"><h3>Boot deal</h3>${L.spons ? brandBadge(L.spons.brand) : ""}</div>${L.spons ? `<div class="small">${money(L.spons.wk)} a week (you keep 70% after tax) until the end of ${L.spons.until}/${(L.spons.until + 1) % 100}.</div>` : `<div class="small muted">No sponsor yet. Brands come calling as your rating and fame grow, and a good agent gets you bigger deals. Offers arrive in your inbox.</div>`}
   <div class="row" style="margin-top:10px">${BRANDS.map((b) => brandBadge(b.id)).join("")}</div></div>
   <h3 style="margin-bottom:10px">Spend your money</h3><div class="grid g2">${shop}</div>`;
@@ -701,6 +708,8 @@ MODALS.msg = (m) => {
     if (a.kind === "bid") {
       act = `<div class="row"><button class="btn pri" data-a="bidResp" data-id="${msg.id}" data-v="accept">Accept ${money(a.fee)}</button><button class="btn" data-a="bidResp" data-id="${msg.id}" data-v="reject">Reject</button></div>
       <div class="row"><label class="f" style="flex:1">Counter-offer (€)<input type="number" id="ctrFee" value="${Math.round(a.fee * 1.25 / 1e5) * 1e5}" step="100000"></label><button class="btn" data-a="bidResp" data-id="${msg.id}" data-v="counter" style="align-self:end">Send counter</button></div>`;
+    } else if (a.kind === "event") {
+      act = `<div class="stack" style="gap:8px">${eventOptions(msg).map((l, i) => `<button class="btn ${i === 0 ? "pri" : ""}" style="justify-content:flex-start;white-space:normal;text-align:left" data-a="eventResp" data-id="${msg.id}" data-v="${i}">${esc(l)}</button>`).join("")}</div>`;
     } else if (a.kind === "spons") {
       act = `<div class="row">${brandBadge(a.brand)}<button class="btn pri" data-a="sponsResp" data-id="${msg.id}" data-v="1">Sign the deal</button><button class="btn" data-a="sponsResp" data-id="${msg.id}" data-v="0">Turn it down</button></div>`;
     } else if (a.kind === "coffer") {
@@ -923,6 +932,7 @@ A.ecSave = () => { const c = club(G.userClub); const n = document.getElementById
 A.bidResp = (el) => { const msg = G.inbox.find((x) => x.id === +el.dataset.id); const v = el.dataset.v; const res = respondBid(msg, v === "accept", v === "counter" ? +document.getElementById("ctrFee").value : 0); openModal("msg", { id: msg.id, res }); render(); };
 A.cofferResp = (el) => { const msg = G.inbox.find((x) => x.id === +el.dataset.id); const res = careerRespond(msg, el.dataset.v === "1"); openModal("msg", { id: msg.id, res }); faceCache.clear(); render(); };
 A.takeJob = (el) => { const msg = G.inbox.find((x) => x.id === +el.dataset.m); if (msg) msg.done = true; takeJob(+el.dataset.id); closeModal(); UI.page = "home"; render(); autosave(); };
+A.eventResp = (el) => { const msg = G.inbox.find((x) => x.id === +el.dataset.id); const res = respondEvent(msg, +el.dataset.v); openModal("msg", { id: msg.id, res }); render(); autosave(); };
 A.sponsResp = (el) => { const msg = G.inbox.find((x) => x.id === +el.dataset.id); const res = sponsorRespond(msg, el.dataset.v === "1"); openModal("msg", { id: msg.id, res }); render(); autosave(); };
 A.mgrTalk = (el) => { const v = el.dataset.k === "position" ? document.getElementById("posReq").value : ""; UI.talkRes = managerTalk(el.dataset.k, v); render(); autosave(); };
 A.signAgent = (el) => { toast(signAgent(+el.dataset.v)); render(); autosave(); };
@@ -1023,6 +1033,8 @@ function busy(on, text) {
 function doContinue() {
   if (UI.busy || !G || (G.career && G.career.retired)) return;
   if (G.sacked && G.mode === "manager") { const m = G.inbox.find((x) => x.act && x.act.kind === "jobs" && !x.done); if (m) openModal("msg", { id: m.id }); return; }
+  const pend = G.inbox.find((x) => x.act && x.act.kind === "event" && !x.done);
+  if (pend) { pend.read = true; render(); openModal("msg", { id: pend.id }); return; }
   const today = userFxOn(G.day);
   if (today && !today.p) { openModal("prematch", { f: today.i }); return; }
   const seasonEnd = G.day >= (G.seasonEnd || SEASON_END) - 1 || (!nextUserFx() && G.day > 280);
@@ -1199,6 +1211,8 @@ document.addEventListener("click", (ev) => {
 });
 const CH = {};
 CH.startLg = (el) => { UI.start.lg = el.value; UI.start.club = null; render(); };
+CH.kidSchool = (el) => { if (!el.value) return; toast(setSchool(+el.dataset.i, el.value)); render(); autosave(); };
+CH.kidTrain = (el) => { toast(setTraining(+el.dataset.i, +el.value)); render(); autosave(); };
 CH.startReal = (el) => { UI.start.real = el.checked; };
 CH.startField = (el) => { UI.start[el.dataset.k] = el.value; };
 CH.cuField = (el) => { const cu = UI.start.cu; const k = el.dataset.k; cu[k] = k === "str" ? +el.value : el.value; if (k === "nat") UI.start.names = null; if (k === "lg") { cu.nat = LEAGUE_DATA.find((l) => l.id === cu.lg).nat; UI.start.names = null; } if (k !== "name" && k !== "short") render(); else { const pv = document.querySelector(".start h2"); if (pv && k === "name") pv.textContent = el.value || "Your club"; } };

@@ -181,7 +181,7 @@ function lifeWeekly() {
   if (!L || !p) return;
   L.ap = 3;
   const net = G.career.retired ? 0 : Math.round(p.wage * (0.55 - agentOf().fee)) + (L.spons ? Math.round(L.spons.wk * 0.7) : 0);
-  const upkeep = L.items.reduce((s, id) => s + (SHOP_BY[id] ? SHOP_BY[id].up : 0), 0);
+  const upkeep = L.items.reduce((s, id) => s + (SHOP_BY[id] ? SHOP_BY[id].up : 0), 0) + kidCosts(L);
   L.cash += net - upkeep;
   if (L.cash < 0) {
     const staff = L.items.filter((id) => SHOP_BY[id].cat === "Staff");
@@ -431,7 +431,7 @@ function retireUser() {
   if (p && p.club >= 0) { G.career.lastClub = p.club; releaseToFA(p); }
   if (p) p.ret = 1;
 }
-function kidFootballChance(peak) { return clamp(0.18 + (peak - 72) * 0.012, 0.12, 0.45); }
+function kidFootballChance(peak) { return clamp(0.08 + (peak - 72) * 0.008, 0.06, 0.25); }
 const KID_JOBS = ["wants to be a doctor", "is into music", "loves video games more than football", "wants to be a pilot", "is set on studying law", "prefers basketball", "wants to be an architect", "is a gifted painter"];
 function seasonsUntil16(kid) { return Math.max(0, 16 - (G.season - kid.by)); }
 // Fast-forward one season without playing matches (used for legacy time skips)

@@ -2,7 +2,7 @@
 
 A football management game that runs entirely in the browser. Manage a real club (or one you create) across 21 leagues in Europe and Africa, or start a player career at 17.
 
-Features: real 2025/26 squads (optional) or a fictional world, transfers, club facilities, domestic cups, Champions League, Europa League, CAF competitions, international breaks, the World Cup, Euros, AFCON and Club World Cup, live matches with in-match decisions in player career mode, a life system (money, cars, homes, relationships with a partner who reacts to how you live, children), boot sponsorship deals, agents, conversations with your manager, and a family legacy where your son can carry on your career.
+Features: real 2025/26 squads (optional) or a fictional world, transfers, club facilities, domestic cups, Champions League, Europa League, CAF competitions, international breaks, the World Cup, Euros, AFCON and Club World Cup, live matches with in-match decisions in player career mode, a life system (money, cars, homes, relationships with a partner who reacts to how you live, children), boot sponsorship deals, agents, conversations with your manager, random events where you make choices, schools and football training for your children, and a family legacy where your son can carry on your career.
 
 No build step and no server: it's plain HTML and JavaScript. Saves are stored in each player's browser (IndexedDB) and can be exported to or imported from a `.json` file.
 
@@ -14,6 +14,7 @@ No build step and no server: it's plain HTML and JavaScript. Saves are stored in
 | `data.js` | Leagues, clubs, nations, name pools |
 | `real.js` | Optional real-player pack (2025/26 squads, approximate ratings) |
 | `world.js` | National teams, tournaments, facilities, player life, legacy |
+| `events.js` | Random events with choices, children's schools and football training |
 | `engine.js` | World generation, calendar, competitions, transfers, seasons |
 | `match.js` | Match engine (quick sim and live) |
 | `ui.js` | Interface, faces, saves |
