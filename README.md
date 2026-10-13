@@ -14,6 +14,7 @@ No build step and no server: it's plain HTML and JavaScript. Saves are stored in
 | `data.js` | Leagues, clubs, nations, name pools |
 | `real.js` | Optional real-player pack (2025/26 squads, approximate ratings) |
 | `world.js` | National teams, tournaments, facilities, player life, legacy |
+| `online.js` | Friends and chat over Firebase (the Phone page) |
 | `events.js` | Random events with choices, children's schools and football training |
 | `engine.js` | World generation, calendar, competitions, transfers, seasons |
 | `match.js` | Match engine (quick sim and live) |
@@ -43,3 +44,7 @@ Any other static host works too (Netlify, Cloudflare Pages, Vercel): upload this
 
 - Club and competition names are real-world names used for a fan project. If you plan to monetise the game, consider renaming them; players can rename clubs and players in-game.
 - With the real-player option, about 670 real players use approximate ratings based on 2025/26 squads; everyone else is generated. Using real names on a public site carries legal risk if you monetise it.
+
+## Phone (friends and chat)
+
+The Phone page uses Firebase (anonymous sign-in and Firestore). The project settings are in `online.js`, and the security rules are in `firestore.rules`: paste them into Firebase → Firestore Database → Rules and press Publish.

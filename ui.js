@@ -97,6 +97,7 @@ const ICON = {
   saves: '<path d="M5 3h11l3 3v15H5z M8 3v6h8V3 M8 21v-7h8v7" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
   world: '<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" fill="none" stroke="currentColor" stroke-width="1.6"/>',
 };
+ICON.phone = '<rect x="6" y="2.5" width="12" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 8h6M9 11.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>';
 ICON.life = '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>';
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
 
@@ -132,8 +133,8 @@ function render() {
   const c = club(G.userClub);
   const unread = G.inbox.filter((m) => !m.read).length;
   const nav = G.mode === "manager"
-    ? [["home", "Home"], ["inbox", "Inbox"], ["squad", "Squad"], ["tactics", "Tactics"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["transfers", "Transfers"], ["club", "Club"], ["sep"], ["saves", "Save & menu"]]
-    : [["home", "Home"], ["inbox", "Inbox"], ["career", "My career"], ["life", "Life"], ["squad", "Squad"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["world", "Players"], ["sep"], ["saves", "Save & menu"]];
+    ? [["home", "Home"], ["inbox", "Inbox"], ["squad", "Squad"], ["tactics", "Tactics"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["transfers", "Transfers"], ["club", "Club"], ["phone", "Phone"], ["sep"], ["saves", "Save & menu"]]
+    : [["home", "Home"], ["inbox", "Inbox"], ["career", "My career"], ["life", "Life"], ["squad", "Squad"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["world", "Players"], ["phone", "Phone"], ["sep"], ["saves", "Save & menu"]];
   const today = userFxOn(G.day);
   const goLabel = G.career && G.career.retired ? "Retired" : today && !today.p ? "Match day" : "Continue";
   const p = G.mode === "career" ? pl(G.userPlayer) : null;
@@ -143,7 +144,7 @@ function render() {
     <div class="date"><b>${fmtDate(G.day, { wd: true, y: true })}</b><span class="small muted">${G.season}/${String((G.season + 1) % 100).padStart(2, "0")} season${UI.lastSaved ? " · saved" : ""}</span></div>
     <button class="btn pri go" data-a="continue" ${G.career && G.career.retired ? "disabled" : ""}>${goLabel}</button>
   </header>
-  <nav class="rail" aria-label="Sections">${nav.map(([k, l]) => k === "sep" ? '<div class="sep"></div>' : `<button class="${UI.page === k ? "on" : ""}" data-a="nav" data-p="${k}">${icon(k === "world" ? "world" : k)}<span>${l}</span>${k === "inbox" && unread ? `<span class="badge-n">${unread}</span>` : ""}</button>`).join("")}</nav>
+  <nav class="rail" aria-label="Sections">${nav.map(([k, l]) => k === "sep" ? '<div class="sep"></div>' : `<button class="${UI.page === k ? "on" : ""}" data-a="nav" data-p="${k}">${icon(k === "world" ? "world" : k)}<span>${l}</span>${k === "inbox" && unread ? `<span class="badge-n">${unread}</span>` : ""}${k === "phone" && Online.totalUnread() ? `<span class="badge-n">${Online.totalUnread()}</span>` : ""}</button>`).join("")}</nav>
   <main id="main">${(PAGES[UI.page] || PAGES.home)()}</main></div>`;
 }
 
@@ -624,6 +625,37 @@ PAGES.life = () => {
   <div class="row" style="margin-top:10px">${BRANDS.map((b) => brandBadge(b.id)).join("")}</div></div>
   <h3 style="margin-bottom:10px">Spend your money</h3><div class="grid g2">${shop}</div>`;
 };
+PAGES.phone = () => {
+  const head = `<div class="page-h"><div><h4>Friends &amp; chat</h4><h1>Phone</h1></div>${G.online && G.online.code ? `<div class="row"><span class="small muted">Your friend code</span><span class="code">${esc(G.online.code)}</span><button class="btn sm" data-a="copyCode">Copy</button></div>` : ""}</div>`;
+  if (!Online.available()) return head + `<div class="panel empty">The phone works on the website version of Touchline. It isn't available inside claude.ai.</div>`;
+  if (Online.state === "error") return head + `<div class="panel stack"><b>Can't connect</b><div class="small">${esc(Online.err)}</div><div><button class="btn pri" data-a="phoneRetry">Try again</button></div></div>`;
+  if (Online.state !== "ready" || !G.online || !G.online.code) { if (Online.state === "off") setTimeout(() => Online.connect(), 0); return head + `<div class="panel empty">Connecting…</div>`; }
+  const fr = G.online.friends;
+  const card = (code) => {
+    const p = Online.profiles[code];
+    if (p === undefined) return `<div class="facrow"><span class="small muted">Loading ${esc(code)}…</span></div>`;
+    if (p === null) return `<div class="facrow"><div><b>${esc(code)}</b><div class="small muted">This player no longer exists.</div></div><button class="btn sm danger" data-a="phoneRemove" data-v="${esc(code)}">Remove</button></div>`;
+    const n = Online.unread(code);
+    const pic = p.face ? `<span class="face" style="width:44px;height:44px">${faceSVG(p.face, p.c1 || "#7d847f", p.c2 || "#fff")}</span>` : crest({ id: 0, c1: p.c1 || "#136f43", c2: p.c2 || "#fff", short: p.short || "?" }, 36);
+    const stats = p.mode === "career" ? `${esc(p.pos || "")} · ${p.ovr || "?"} ovr · age ${p.age || "?"} · ${p.goals || 0} goals in ${p.apps || 0} games${p.caps ? ` · ${p.caps} caps` : ""}${p.retired ? " · retired" : ""}` : `Manager · ${p.trophies || 0} trophies`;
+    return `<button class="friend ${Online.open === code ? "on" : ""}" data-a="phoneOpen" data-v="${esc(code)}">${pic}<span style="min-width:0;flex:1;text-align:left"><b>${esc(p.name)}</b>${n ? ` <span class="badge-n" style="position:static">${n}</span>` : ""}<br><span class="small muted">${esc(p.club)} · ${esc(p.league || "")} · ${p.season}/${(p.season + 1) % 100}</span><br><span class="small muted">${stats}</span></span></button>`;
+  };
+  let chat;
+  if (Online.open && fr.includes(Online.open)) {
+    const code = Online.open, p = Online.profiles[code] || { name: code }, msgs = Online.chats[Online.pair(code)] || [];
+    Online.markRead(code);
+    chat = `<div class="panel chat"><div class="panel-h"><div class="row"><button class="btn sm" data-a="phoneBack">‹ Back</button><b>${esc(p.name)}</b><span class="small muted">${esc(p.club || "")}</span></div><button class="btn sm danger" data-a="phoneRemove" data-v="${esc(code)}">Remove friend</button></div>
+    <div class="chat-scroll" id="chatScroll">${msgs.length ? msgs.map((m) => `<div class="bub ${m.from === G.online.code ? "me" : ""}"><div>${esc(m.text)}</div><span>${new Date(m.at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span></div>`).join("") : `<div class="empty">No messages yet. Say hi!</div>`}</div>
+    <div class="row" style="margin-top:10px"><input type="text" id="chatInput" maxlength="500" placeholder="Message ${esc(p.name)}" style="flex:1;min-width:0" aria-label="Message"><button class="btn pri" data-a="phoneSend">Send</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" data-a="phoneQuick" data-v="result">Share my last result</button><button class="btn sm" data-a="phoneQuick" data-v="stats">Share my season</button><button class="btn sm" data-a="phoneQuick" data-v="banter">Send some banter</button></div></div>`;
+  } else {
+    chat = `<div class="panel">${fr.length ? `<div class="stack" style="gap:8px">${fr.map(card).join("")}</div>` : `<div class="empty">No friends yet. Send your code <b>${esc(G.online.code)}</b> to a friend who plays Touchline, then add theirs on the right.</div>`}</div>`;
+  }
+  return head + `<div class="grid g21"><div class="stack" style="gap:16px">${chat}</div><div class="stack" style="gap:16px">
+  <div class="panel stack"><h3>Add a friend</h3><div class="row"><input type="text" id="friendCode" placeholder="e.g. SUNNY-1234" style="flex:1;min-width:0;text-transform:uppercase" aria-label="Friend code"><button class="btn pri" data-a="phoneAdd">Add</button></div>
+  <p class="small muted" style="margin:0">Every save has its own friend code. Your friends see your player card update as your career goes on. Messages are stored online, so keep them friendly.</p></div>
+  ${Online.err ? `<div class="panel small">${esc(Online.err)}</div>` : ""}</div></div>`;
+};
 PAGES.saves = () => {
   return `<div class="page-h"><div><h4>${esc(G.name)}</h4><h1>Save &amp; menu</h1></div></div>
   <div class="grid g2"><div class="panel stack"><h3>Save</h3>
@@ -937,6 +969,21 @@ A.sponsResp = (el) => { const msg = G.inbox.find((x) => x.id === +el.dataset.id)
 A.mgrTalk = (el) => { const v = el.dataset.k === "position" ? document.getElementById("posReq").value : ""; UI.talkRes = managerTalk(el.dataset.k, v); render(); autosave(); };
 A.signAgent = (el) => { toast(signAgent(+el.dataset.v)); render(); autosave(); };
 A.agentAct = (el) => { toast(agentAction(el.dataset.k)); render(); autosave(); };
+A.copyCode = () => { const t = G.online.code; try { navigator.clipboard.writeText(t).then(() => toast("Code copied."), () => toast(t)); } catch (e) { toast(t); } };
+A.phoneRetry = () => { Online.state = "off"; Online.connect(); render(); };
+A.phoneAdd = async () => { const v = document.getElementById("friendCode").value; try { toast(await Online.addFriend(v)); } catch (e) { toast("Couldn't add that friend. Try again."); } render(); };
+A.phoneOpen = (el) => { Online.open = el.dataset.v; render(); const b = document.getElementById("chatScroll"); if (b) b.scrollTop = b.scrollHeight; const i = document.getElementById("chatInput"); if (i && window.innerWidth > 820) i.focus(); };
+A.phoneBack = () => { Online.open = null; render(); };
+A.phoneRemove = (el) => { Online.removeFriend(el.dataset.v); render(); };
+A.phoneSend = async () => { const i = document.getElementById("chatInput"); const t = i.value; if (!t.trim()) return; i.value = ""; try { await Online.send(Online.open, t); } catch (e) { i.value = t; toast("Message didn't send. Check your connection."); } };
+A.phoneQuick = async (el) => {
+  const k = el.dataset.v, c = club(G.userClub);
+  let t = "";
+  if (k === "result") { const f = G.fx.filter((x) => x.p && isUserFx(x)).sort((a, b) => b.d - a.d)[0]; if (!f) { toast("No results yet this season."); return; } t = `FT: ${club(f.h).name} ${f.hg}–${f.ag} ${club(f.a).name} (${compName(f.c)})`; const L = G.career && G.career.last; if (G.mode === "career" && L && L.f === f.i) t += `. I got a ${L.r.toFixed(1)} rating${L.g ? `, ${L.g} goal${L.g > 1 ? "s" : ""}` : ""}${L.a ? `, ${L.a} assist${L.a > 1 ? "s" : ""}` : ""}.`; }
+  else if (k === "stats") { if (G.mode === "career") { const p = pl(G.userPlayer); t = `${G.season}/${(G.season + 1) % 100} so far at ${c.name}: ${p.st.ap} games, ${p.st.g} goals, ${p.st.as} assists, ${p.o} overall.`; } else { const lg = leagueOf(c), pos = sortTable(lg.table, lg.clubs).indexOf(c.id) + 1; t = `${c.name} are ${ordinal(pos)} in the ${lg.name}. Board confidence ${Math.round(G.mgr.conf)}.`; } }
+  else t = pick(["Bet you can't score more than me this season 😏", "Check the table and weep.", "When are we playing each other?", "Your keeper's still looking for that ball.", "Golden Ball is mine this year."]);
+  try { await Online.send(Online.open, t); } catch (e) { toast("Message didn't send."); }
+};
 A.facUp = (el) => { const r = upgradeFacility(el.dataset.k); toast(r.msg); render(); if (r.ok) autosave(); };
 A.life = (el) => { const r = lifeAction(el.dataset.k, el.dataset.v); if (r) toast(r); render(); autosave(); };
 A.renameKid = (el) => { const i = +el.dataset.i, v = document.getElementById("kidName" + i).value.trim(); if (v) { G.career.life.kids[i].name = v; toast("Name saved."); render(); } };
@@ -964,7 +1011,7 @@ A.continue = () => doContinue();
 A.saveNow = async () => { await autosave(true); toast("Saved on this device."); };
 A.saveCloud = async () => { busy(true, "Saving to cloud…"); try { await Cloud.save(); toast("Saved to the cloud."); } catch (e) { toast(cloudErr(e)); } busy(false); };
 A.exportSave = async () => exportSave();
-A.toTitle = async () => { await autosave(); G = null; UI.start = { step: "home" }; UI.page = "home"; await refreshSaves(); render(); };
+A.toTitle = async () => { await autosave(); Online.stop(); G = null; UI.start = { step: "home" }; UI.page = "home"; await refreshSaves(); render(); };
 A.newSlot = async () => { G.id = "s" + Date.now().toString(36); G.name = G.name + " (copy)"; await autosave(true); render(); toast("Saved as a new copy."); };
 // start screen
 A.startMgr = () => { UI.start = { step: "mgr" }; render(); };
@@ -1022,7 +1069,8 @@ A.delCloudAsk = (el) => openModal("confirm", { title: "Delete this cloud save?",
 A.refreshCloud = async () => { await refreshCloud(); render(); };
 
 function refresh() { if (UI.modal && UI.modal.kind === "club") renderModal(); else render(); }
-function afterNewGame() { UI.page = "home"; UI.start = { step: "home" }; busy(false); render(); autosave(true); }
+function afterNewGame() { UI.page = "home"; UI.start = { step: "home" }; busy(false); render(); autosave(true); onlineGameLoaded(); }
+function onlineGameLoaded() { if (!Online.available()) return; Online.stop(); if (Online.state === "ready") Online.ensureProfile().catch(() => {}); else Online.connect(); }
 
 // ---------- game flow ----------
 function busy(on, text) {
@@ -1097,6 +1145,7 @@ async function autosave(force) {
       await Store.put("saves", G.id, gz ? { gz } : { json });
       await Store.put("meta", G.id, metaOf());
       UI.lastSaved = Date.now();
+      Online.pushProfile();
       const d = document.querySelector(".topbar .date span"); if (d && !/saved/.test(d.textContent)) d.textContent += " · saved";
     } catch (e) { if (force) toast("This browser blocked local storage. Use Save to cloud or Export instead."); }
   })();
@@ -1107,6 +1156,7 @@ function loadJSON(json) {
   const g = JSON.parse(json);
   if (!g || !g.clubs || !g.players || !g.fx) throw new Error("bad save");
   G = g; migrateSave(); rebuildIdx(); faceCache.clear(); UI.sel = null;
+  if (typeof onlineGameLoaded === "function") setTimeout(onlineGameLoaded, 0);
 }
 async function loadLocal(id) { const rec = await Store.get("saves", id); if (!rec) throw new Error("missing"); loadJSON(rec.gz ? await gunzip(rec.gz) : rec.json); }
 async function refreshSaves() { try { UI.saves = (await Store.all("meta")) || []; } catch (e) { UI.saves = []; } }
@@ -1237,7 +1287,7 @@ document.addEventListener("input", (ev) => {
   if (c === "ts" && el.tagName === "INPUT" && el.type !== "checkbox") { clearTimeout(tsTimer); tsTimer = setTimeout(() => CH.ts(el), 280); }
   else if (c === "startField" || c === "cuName" || (c === "cpField" && el.tagName === "INPUT") || (c === "cuField" && (el.dataset.k === "name" || el.dataset.k === "short"))) CH[c](el);
 });
-document.addEventListener("keydown", (ev) => { if (ev.key === "Escape" && UI.modal && UI.modal.kind !== "live" && UI.modal.kind !== "prematch") closeModal(); });
+document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target && ev.target.id === "chatInput") { ev.preventDefault(); A.phoneSend(); return; } if (ev.key === "Enter" && ev.target && ev.target.id === "friendCode") { ev.preventDefault(); A.phoneAdd(); return; } if (ev.key === "Escape" && UI.modal && UI.modal.kind !== "live" && UI.modal.kind !== "prematch") closeModal(); });
 
 // ---------- boot ----------
 async function boot(data) {
