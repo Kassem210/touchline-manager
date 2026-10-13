@@ -1289,6 +1289,30 @@ document.addEventListener("input", (ev) => {
 });
 document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target && ev.target.id === "chatInput") { ev.preventDefault(); A.phoneSend(); return; } if (ev.key === "Enter" && ev.target && ev.target.id === "friendCode") { ev.preventDefault(); A.phoneAdd(); return; } if (ev.key === "Escape" && UI.modal && UI.modal.kind !== "live" && UI.modal.kind !== "prematch") closeModal(); });
 
+
+// ---------- self-update (hosted site) ----------
+const BUILD = "202610131927";
+async function checkForUpdate() {
+  if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
+  if (!location.protocol.startsWith("http")) return;
+  try {
+    const r = await fetch("version.txt?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) return;
+    const v = (await r.text()).trim();
+    if (v && v !== BUILD) showUpdateBanner(v);
+  } catch (e) { /* offline */ }
+}
+function showUpdateBanner(v) {
+  if (document.getElementById("updBar")) return;
+  const el = document.createElement("div");
+  el.id = "updBar"; el.className = "toast"; el.style.cursor = "pointer"; el.style.bottom = "calc(90px + env(safe-area-inset-bottom, 0px))";
+  el.textContent = "A new version of Touchline is ready. Tap to update.";
+  el.onclick = async () => { el.textContent = "Updating…"; try { await autosave(true); } catch (e) {} location.replace(location.pathname + "?v=" + v); };
+  document.body.appendChild(el);
+}
+setTimeout(checkForUpdate, 1500);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkForUpdate(); });
+
 // ---------- boot ----------
 async function boot(data) {
   await refreshSaves();
