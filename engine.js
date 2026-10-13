@@ -446,7 +446,7 @@ function autoLineup(c, force) {
     for (const p of pool) {
       if (used.has(p.id)) continue;
       const fitF = p.fit < 55 ? -14 : (p.fit - 100) * 0.12;
-      let s = effAt(p, pos) + fitF + (p.id === career ? 1.5 : 0) + (p.form.length ? (avg(p.form) - 6.6) * 1.2 : 0);
+      let s = effAt(p, pos) + fitF + (p.id === career ? careerSelBonus() : 0) + (p.form.length ? (avg(p.form) - 6.6) * 1.2 : 0);
       if (s > bs) { bs = s; best = p; }
     }
     if (best) { xi[i] = best.id; used.add(best.id); }
@@ -732,8 +732,13 @@ function careerWeekly() {
 }
 function careerOffers() {
   const p = pl(G.userPlayer); if (!p || p.loan || (G.career && G.career.retired)) return;
+  const C = G.career, ag = agentOf();
   const recent = p.form.slice(-8), f = recent.length ? avg(recent) : 6.4;
-  const chance = 0.012 + (p.listed ? 0.05 : 0) + Math.max(0, f - 6.8) * 0.03;
+  const wants = p.listed || C.agentSearch;
+  if (C.lastOffer == null) C.lastOffer = absDay() - 200;
+  // without a transfer request, offers come roughly every two seasons (sooner with a better agent)
+  if (!wants && absDay() - C.lastOffer < 800 / (1 + ag.offers)) return;
+  const chance = wants ? 0.06 : 0.015 + Math.max(0, f - 6.9) * 0.02;
   if (rnd() > chance) return;
   if (G.inbox.some((m) => m.act && m.act.kind === "coffer" && !m.done)) return;
   const cur = club(p.club);
@@ -742,7 +747,8 @@ function careerOffers() {
   if (!cands.length) return;
   const b = pick(cands);
   const fee = Math.round(p.val * (0.9 + rnd() * 0.4) / 1e5) * 1e5;
-  const wage = Math.round(wageFor(p, b) * (1.1 + rnd() * 0.3) * (hasItem("pro4") ? 1.15 : 1) / 100) * 100;
+  const wage = Math.round(wageFor(p, b) * (1.1 + rnd() * 0.3) * (1 + ag.wage) / 100) * 100;
+  C.lastOffer = absDay();
   inbox({ t: `Transfer offer: ${b.name}`, b: `${b.name} (${leagueOf(b).name}) have agreed a ${money(fee)} fee with ${cur.name} and offer you ${money(wage)}/wk on a ${ri(3, 5)}-year contract.`, type: "career", act: { kind: "coffer", cid: b.id, fee, wage } });
 }
 function careerRespond(msg, accept) {
@@ -757,7 +763,7 @@ function careerRespond(msg, accept) {
 }
 function careerRequest(kind) {
   const p = pl(G.userPlayer), c = club(p.club);
-  if (kind === "list") { p.listed = p.listed ? 0 : 1; return p.listed ? "You've asked to leave. Clubs will be told you're available." : "You've told the club you're happy to stay."; }
+  if (kind === "list") { p.listed = p.listed ? 0 : 1; if (p.listed) G.career.trust = clamp((G.career.trust || 50) - 10, 0, 100); return p.listed ? "You've handed in a transfer request. The manager isn't pleased, but clubs will be told you're available." : "You've told the club you're happy to stay."; }
   if (kind === "loan") {
     if (p.loan) return "You're already out on loan.";
     if (!inWindow()) return "Loans can only be arranged while a transfer window is open.";
@@ -772,9 +778,9 @@ function careerRequest(kind) {
     return `Loan agreed: you're joining ${to.name} for the rest of the season.`;
   }
   if (kind === "contract") {
-    const dem = wageFor(p, c);
-    if (p.wage >= dem * 0.95) return "The club feel your current deal is fair.";
-    if (avg(p.form.slice(-6)) < 6.6) return "The club want to see better form before talking about a new deal.";
+    const ag = agentOf(), dem = Math.round(wageFor(p, c) * (1 + ag.wage) / 100) * 100;
+    if (p.wage >= dem * 0.95) return ag.id > 1 ? `${ag.n}: "Your deal is already as good as we'll get right now."` : "The club feel your current deal is fair.";
+    if (avg(p.form.slice(-6)) < 6.6 - ag.id * 0.1) return "The club want to see better form before talking about a new deal.";
     p.wage = dem; p.ce = Math.max(p.ce, G.season + 3);
     return `New contract signed: ${money(dem)}/wk until ${p.ce + 1}.`;
   }

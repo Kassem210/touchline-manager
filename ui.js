@@ -565,26 +565,38 @@ PAGES.career = () => {
       ${hist.map((h) => `<tr><td>${h.s}/${(h.s + 1) % 100}</td><td>${esc(h.cn)}</td><td class="r">${h.ap}</td><td class="r">${h.g}</td><td class="r">${h.as}</td><td class="r">${h.r}</td><td class="r">${h.o}</td></tr>`).join("")}</tbody></table></div>
       <div class="kpis" style="margin-top:12px"><div class="kpi"><b>${hist.reduce((s, h) => s + h.ap, 0) + p.st.ap}</b><span>Career apps</span></div><div class="kpi"><b>${hist.reduce((s, h) => s + h.g, 0) + p.st.g}</b><span>Career goals</span></div><div class="kpi"><b>${hist.reduce((s, h) => s + h.as, 0) + p.st.as}</b><span>Career assists</span></div></div></div>
   </div><div class="stack" style="gap:16px">
-    <div class="panel stack"><h3>Talk to the club</h3>
-      <button class="btn" data-a="creq" data-v="list" ${cr.retired || p.loan ? "disabled" : ""}>${p.listed ? "Tell the club you'll stay" : "Ask to leave"}</button>
-      <button class="btn" data-a="creq" data-v="contract" ${cr.retired || p.loan ? "disabled" : ""}>Ask for a new contract</button>
-      <button class="btn" data-a="creq" data-v="loan" ${cr.retired || p.loan ? "disabled" : ""}>${p.loan ? "On loan from " + esc(club(p.loan.from).name) : "Ask to go out on loan"}</button>
-      <p class="small muted" style="margin:0">Offers from other clubs arrive in your inbox during transfer windows. Good form and asking to leave both bring more interest. Not getting games? A loan move gets you minutes and you return at the end of the season.</p>
-      <button class="btn danger" data-a="retireAsk" ${cr.retired ? "disabled" : ""}>Retire</button></div>
+    ${cr.retired ? "" : (() => {
+      const t = cr.trust == null ? 50 : cr.trust, ag = agentOf(), L = cr.life;
+      const promise = cr.promise && cr.promise > absDay();
+      return `<div class="panel stack"><h3>Your manager</h3><div class="meter"><span class="small muted" style="width:56px">Trust</span><div class="bar"><i style="width:${t}%;background:${t < 35 ? "var(--loss)" : t < 60 ? "var(--warn)" : "var(--win)"}"></i></div><b class="small">${Math.round(t)}</b></div>
+      <div class="small muted">${promise ? "He's promised you more playing time. " : ""}${cr.captain === p.club ? "You're the club captain. " : ""}Higher trust means more starts. Good form builds it; complaining and transfer requests damage it. You can talk to him once every two weeks.</div>
+      ${UI.talkRes ? `<div class="moment done">${esc(UI.talkRes)}</div>` : ""}
+      <div class="row"><button class="btn" data-a="mgrTalk" data-k="time">Ask for more playing time</button><button class="btn" data-a="mgrTalk" data-k="feedback">Ask for feedback</button><button class="btn" data-a="mgrTalk" data-k="complain">Complain about being dropped</button><button class="btn" data-a="mgrTalk" data-k="captain">Ask to be captain</button></div>
+      <div class="row"><select id="posReq" aria-label="Position">${POS_NEAR[p.pos].filter((x) => x !== "GK").map((x) => `<option>${x}</option>`).join("")}</select><button class="btn" data-a="mgrTalk" data-k="position" ${POS_NEAR[p.pos].length ? "" : "disabled"}>Ask to play there</button></div>
+      <h4 style="margin-top:6px">Club</h4><div class="row"><button class="btn" data-a="creq" data-v="list" ${p.loan ? "disabled" : ""}>${p.listed ? "Withdraw transfer request" : "Hand in a transfer request"}</button><button class="btn" data-a="creq" data-v="contract" ${p.loan ? "disabled" : ""}>Ask for a new contract</button><button class="btn" data-a="creq" data-v="loan" ${p.loan ? "disabled" : ""}>${p.loan ? "On loan from " + esc(club(p.loan.from).name) : "Ask to go out on loan"}</button></div>
+      <p class="small muted" style="margin:0">Clubs only come in for you every couple of seasons, unless you hand in a transfer request or your agent goes looking.</p></div>
+      <div class="panel stack"><div class="panel-h"><h3>Agent</h3><span class="chip ${ag.id ? "gold" : ""}">${esc(ag.n)}</span></div>
+      ${ag.id ? `<div class="small">${esc(ag.d)} Fee: ${Math.round(ag.fee * 100)}% of wages. Better wages (+${Math.round(ag.wage * 100)}%), more offers, bigger boot deals.</div><div class="row"><button class="btn" data-a="agentAct" data-k="search">${cr.agentSearch ? "Stop looking for a move" : "Find me a new club"}</button><button class="btn" data-a="agentAct" data-k="contract">Negotiate a new contract</button></div>` : `<div class="small muted">An agent negotiates better wages, brings more transfer offers and bigger sponsorship deals, for a cut of your wages.</div>`}
+      <div class="stack" style="gap:6px">${AGENTS.filter((a) => a.id && a.id !== ag.id).map((a) => `<div class="facrow"><div><b>${esc(a.n)}</b><div class="small muted">${esc(a.d)} ${Math.round(a.fee * 100)}% fee${a.fame ? ` · needs fame ${a.fame}` : ""}</div></div><button class="btn sm ${L.fame >= a.fame ? "pri" : ""}" data-a="signAgent" data-v="${a.id}" ${L.fame >= a.fame ? "" : "disabled"}>Sign</button></div>`).join("")}${ag.id ? `<button class="btn sm danger" data-a="signAgent" data-v="0">Leave your agent</button>` : ""}</div></div>
+      <div class="panel"><button class="btn danger" data-a="retireAsk">Retire from football</button></div>`;
+    })()}
     <div class="panel"><h3>Trophies &amp; awards</h3>${cr.trophies.concat(cr.awards.map((a) => ({ ...a, c: "Individual award" }))).sort((a, b) => b.s - a.s).map((t) => `<div class="trophy"><span class="chip gold">${t.s}</span><span><b>${esc(t.n)}</b> <span class="small muted">${esc(t.c)}</span></span></div>`).join("") || `<div class="empty">Your first medal is out there.</div>`}</div>
   </div></div>`;
 };
+function brandBadge(id) { const b = BRAND_BY[id]; return `<span class="brand" style="background:${b.bg};color:${b.fg}">${esc(b.n)}</span>`; }
 function legacyPanel() {
-  const L = G.career.life, sons = L.kids.map((k, i) => ({ ...k, i })).filter((k) => k.g === "boy");
+  const L = G.career.life, all = L.kids.map((k, i) => ({ ...k, i })), sons = all.filter((k) => k.g === "boy" && k.fb);
+  const others = all.filter((k) => !(k.g === "boy" && k.fb));
   return `<div class="panel" style="margin-bottom:16px"><h3>Retired in ${esc(G.career.retired)}</h3>
-  ${sons.length ? `<p style="margin:6px 0 12px">Carry on the family name with one of your sons. He starts at 16 in an academy, with his own potential.</p><div class="stack">${sons.map((k) => { const n = seasonsUntil16(k); return `<div class="savecard"><span class="face" style="width:44px;height:44px">${faceSVG([pl(G.userPlayer).face[0], 2, "dark", 0, 1, 0, 1, 0], "#136f43", "#fff")}</span><div><b>${esc(k.name)}</b><div class="small muted">Age ${G.season - k.by} · football talent ${"★".repeat(clamp(Math.round((k.pot - 55) / 8), 1, 5))}</div></div>${n ? `<button class="btn pri sm" data-a="legacySkip" data-i="${k.i}">Skip ${n} season${n > 1 ? "s" : ""}</button>` : `<button class="btn pri sm" data-a="legacyStart" data-i="${k.i}">Play as ${esc(k.name)}</button>`}</div>`; }).join("")}</div>` : `<p style="margin:6px 0 0">You have no son to carry on the name. Your record stays here, and you can start a new career from the menu.</p>`}</div>`;
+  ${sons.length ? `<p style="margin:6px 0 12px">Carry on the family name with one of your sons. He starts at 16 in an academy, with his own potential.</p><div class="stack">${sons.map((k) => { const n = seasonsUntil16(k); return `<div class="savecard"><span class="face" style="width:44px;height:44px">${faceSVG([pl(G.userPlayer).face[0], 2, "dark", 0, 1, 0, 1, 0], "#136f43", "#fff")}</span><div><b>${esc(k.name)}</b><div class="small muted">Age ${G.season - k.by} · football talent ${"★".repeat(clamp(Math.round((k.pot - 55) / 8), 1, 5))}</div></div>${n ? `<button class="btn pri sm" data-a="legacySkip" data-i="${k.i}">Skip ${n} season${n > 1 ? "s" : ""}</button>` : `<button class="btn pri sm" data-a="legacyStart" data-i="${k.i}">Play as ${esc(k.name)}</button>`}</div>`; }).join("")}</div>` : `<p style="margin:6px 0 0">None of your children want to be footballers, so the story ends here. Your record stays, and you can start a new career from the menu.</p>`}
+  ${others.length ? `<div class="small muted" style="margin-top:10px">${others.map((k) => `${esc(k.name)} ${KID_JOBS[(k.name.length + k.by) % KID_JOBS.length]}.`).join(" ")}</div>` : ""}</div>`;
 }
 function attrRow(p, i) { const v = p.a[i]; return `<div class="attr"><span>${ATTRS[i]}</span><div class="bar"><i style="width:${v}%;background:${ovrBg(v)}"></i></div><span class="num r">${Math.round(v)}</span></div>`; }
 
 PAGES.life = () => {
   if (G.mode !== "career") return PAGES.home();
   const L = G.career.life, p = pl(G.userPlayer);
-  const income = G.career.retired ? 0 : Math.round(p.wage * 0.55);
+  const income = (G.career.retired ? 0 : Math.round(p.wage * (0.55 - agentOf().fee))) + (L.spons ? Math.round(L.spons.wk * 0.7) : 0);
   const upkeep = L.items.reduce((s, id) => s + SHOP_BY[id].up, 0);
   const statusText = { single: "Single", dating: `Dating ${L.partner}`, engaged: `Engaged to ${L.partner}`, married: `Married to ${L.partner}` }[L.status];
   const act = (k, label, v = "", extra = "") => `<button class="btn" data-a="life" data-k="${k}" data-v="${v}" ${L.ap <= 0 && !["breakup"].includes(k) ? "disabled" : ""}>${label}${extra ? ` <span class="small muted">${extra}</span>` : ""}</button>`;
@@ -593,12 +605,16 @@ PAGES.life = () => {
   return `<div class="page-h"><div><h4>Off the pitch</h4><h1>Life</h1></div><span class="chip ${L.ap ? "" : "sus"}">Free time this week: ${L.ap}/3</span></div>
   <div class="panel" style="margin-bottom:16px"><div class="kpis"><div class="kpi"><b>${money(L.cash)}</b><span>Bank balance</span></div><div class="kpi"><b>${money(income)}</b><span>Take-home / wk</span></div><div class="kpi"><b>${money(upkeep)}</b><span>Upkeep / wk</span></div><div class="kpi"><b>${L.happy}</b><span>Happiness</span></div><div class="kpi"><b>${Math.round(L.fame)}</b><span>Fame</span></div></div>
   <div class="meter" style="margin-top:12px"><span class="small muted" style="width:76px">Happiness</span><div class="bar"><i style="width:${L.happy}%;background:${L.happy < 40 ? "var(--loss)" : L.happy < 60 ? "var(--warn)" : "var(--win)"}"></i></div></div>
-  <p class="small muted" style="margin:8px 0 0">You keep 55% of your wage after tax and agent fees. Happiness feeds your morale on the pitch, and fame makes it easier to meet people. Each life action uses some of your free time, which resets every week.</p></div>
-  <div class="grid g2" style="margin-bottom:16px"><div class="panel stack"><h3>Love life</h3><div><b>${esc(statusText)}</b>${L.partner && L.status !== "married" ? `<div class="meter" style="margin-top:6px"><span class="small muted" style="width:76px">Relationship</span><div class="bar"><i style="width:${L.rel}%"></i></div></div>` : ""}${L.due != null ? `<div class="small" style="margin-top:6px">A baby is on the way.</div>` : ""}</div>
+  <p class="small muted" style="margin:8px 0 0">You keep 55% of your wage after tax, minus your agent's cut, plus your boot deal. Happiness feeds your morale on the pitch, and fame makes it easier to meet people. Each life action uses some of your free time, which resets every week.</p></div>
+  <div class="grid g2" style="margin-bottom:16px"><div class="panel stack"><h3>Love life</h3><div><b>${esc(statusText)}</b>${L.partner && L.status !== "married" ? `<div class="meter" style="margin-top:6px"><span class="small muted" style="width:76px">Relationship</span><div class="bar"><i style="width:${L.rel}%"></i></div></div>` : ""}
+    ${L.partner ? `<div class="meter" style="margin-top:6px"><span class="small muted" style="width:76px">Her mood</span><div class="bar"><i style="width:${L.pm}%;background:${L.pm < 35 ? "var(--loss)" : L.pm < 55 ? "var(--warn)" : "var(--win)"}"></i></div><b class="small">${moodWord(L.pm)}</b></div>${L.pmWhy ? `<div class="small muted" style="margin-top:4px">${esc(L.pmWhy)}</div>` : ""}` : ""}${L.due != null ? `<div class="small" style="margin-top:6px">A baby is on the way.</div>` : ""}</div>
     <div class="row">${DATES.map(([k, l, c]) => act("date", l, k, money(c))).join("")}</div>
-    <div class="row">${L.status === "dating" ? act("propose", "Propose", "", "ring €30K") : ""}${L.status === "engaged" ? act("wedding", "Small wedding", "small", "€90K") + act("wedding", "Big wedding", "big", "€900K") : ""}${L.status === "married" ? act("baby", "Try for a baby") + act("family", "Family day") : ""}${L.status === "dating" || L.status === "engaged" ? `<button class="btn danger" data-a="life" data-k="breakup">Break up</button>` : ""}</div></div>
+    <div class="row">${L.status === "dating" ? act("propose", "Propose", "", "ring €30K") : ""}${L.status === "engaged" ? act("wedding", "Small wedding", "small", "€90K") + act("wedding", "Big wedding", "big", "€900K") : ""}${L.status === "married" ? act("baby", "Try for a baby") + act("family", "Family day") : ""}${L.status === "dating" || L.status === "engaged" ? `<button class="btn danger" data-a="life" data-k="breakup">Break up</button>` : ""}</div>
+    ${L.partner ? `<div class="row">${act("talk", "Talk to her")}${act("gift", "Flowers", "small", "€5K")}${act("gift", "Jewellery", "big", "€50K")}</div><p class="small muted" style="margin:0">She cares about money. Reckless spending, nights out and being broke upset her. If you go broke for three weeks, she leaves.</p>` : ""}</div>
   <div class="panel stack"><h3>Free time</h3><div class="row">${act("night", "Night out with teammates", "", "€3K")}${act("charity", "Donate to charity", "", "€100K")}${L.kids.length && L.status !== "married" ? act("family", "Time with the kids") : ""}</div>
-  <h4 style="margin-top:6px">Children</h4>${L.kids.length ? L.kids.map((k, i) => `<div class="facrow"><div class="row" style="gap:8px"><input type="text" id="kidName${i}" value="${esc(k.name)}" aria-label="Child's name" style="width:140px"><span class="small muted">${k.g === "boy" ? "Son" : "Daughter"} · age ${G.season - k.by}${k.g === "boy" ? ` · football talent ${"★".repeat(clamp(Math.round((k.pot - 55) / 8), 1, 5))}` : ""}</span></div><button class="btn sm" data-a="renameKid" data-i="${i}">Save name</button></div>`).join("") : `<div class="small muted">No children yet. When you retire, a son can carry on your career.</div>`}</div></div>
+  <h4 style="margin-top:6px">Children</h4>${L.kids.length ? L.kids.map((k, i) => `<div class="facrow"><div class="row" style="gap:8px"><input type="text" id="kidName${i}" value="${esc(k.name)}" aria-label="Child's name" style="width:140px"><span class="small muted">${k.g === "boy" ? "Son" : "Daughter"} · age ${G.season - k.by}${k.fb ? ` · future footballer ${"★".repeat(clamp(Math.round((k.pot - 55) / 8), 1, 5))}` : ` · ${KID_JOBS[(k.name.length + k.by) % KID_JOBS.length]}`}</span></div><button class="btn sm" data-a="renameKid" data-i="${i}">Save name</button></div>`).join("") : `<div class="small muted">No children yet. Not every child takes after you, but a son who loves football can carry on your career when you retire.</div>`}</div></div>
+  <div class="panel" style="margin-bottom:16px"><div class="panel-h"><h3>Boot deal</h3>${L.spons ? brandBadge(L.spons.brand) : ""}</div>${L.spons ? `<div class="small">${money(L.spons.wk)} a week (you keep 70% after tax) until the end of ${L.spons.until}/${(L.spons.until + 1) % 100}.</div>` : `<div class="small muted">No sponsor yet. Brands come calling as your rating and fame grow, and a good agent gets you bigger deals. Offers arrive in your inbox.</div>`}
+  <div class="row" style="margin-top:10px">${BRANDS.map((b) => brandBadge(b.id)).join("")}</div></div>
   <h3 style="margin-bottom:10px">Spend your money</h3><div class="grid g2">${shop}</div>`;
 };
 PAGES.saves = () => {
@@ -685,6 +701,8 @@ MODALS.msg = (m) => {
     if (a.kind === "bid") {
       act = `<div class="row"><button class="btn pri" data-a="bidResp" data-id="${msg.id}" data-v="accept">Accept ${money(a.fee)}</button><button class="btn" data-a="bidResp" data-id="${msg.id}" data-v="reject">Reject</button></div>
       <div class="row"><label class="f" style="flex:1">Counter-offer (€)<input type="number" id="ctrFee" value="${Math.round(a.fee * 1.25 / 1e5) * 1e5}" step="100000"></label><button class="btn" data-a="bidResp" data-id="${msg.id}" data-v="counter" style="align-self:end">Send counter</button></div>`;
+    } else if (a.kind === "spons") {
+      act = `<div class="row">${brandBadge(a.brand)}<button class="btn pri" data-a="sponsResp" data-id="${msg.id}" data-v="1">Sign the deal</button><button class="btn" data-a="sponsResp" data-id="${msg.id}" data-v="0">Turn it down</button></div>`;
     } else if (a.kind === "coffer") {
       act = `<div class="row"><button class="btn pri" data-a="cofferResp" data-id="${msg.id}" data-v="1">Accept the move</button><button class="btn" data-a="cofferResp" data-id="${msg.id}" data-v="0">Stay where I am</button></div>`;
     } else if (a.kind === "jobs") {
@@ -856,7 +874,7 @@ function renderLive(full) {
 
 // ---------- actions ----------
 const A = {};
-A.nav = (el) => { UI.page = el.dataset.p; UI.sel = null; render(); window.scrollTo(0, 0); };
+A.nav = (el) => { UI.page = el.dataset.p; UI.sel = null; UI.talkRes = null; render(); window.scrollTo(0, 0); };
 A.close = () => closeModal();
 A.scrim = (el, ev) => { if (ev.target === el && UI.modal && UI.modal.kind !== "live" && UI.modal.kind !== "prematch") closeModal(); };
 A.sort = (el) => { const key = el.dataset.key, k = el.dataset.k; const s = UI.sort[key]; UI.sort[key] = s && s.k === k ? { k, d: -s.d } : { k, d: ["name", "pos", "club"].includes(k) ? 1 : -1 }; refresh(); };
@@ -905,6 +923,10 @@ A.ecSave = () => { const c = club(G.userClub); const n = document.getElementById
 A.bidResp = (el) => { const msg = G.inbox.find((x) => x.id === +el.dataset.id); const v = el.dataset.v; const res = respondBid(msg, v === "accept", v === "counter" ? +document.getElementById("ctrFee").value : 0); openModal("msg", { id: msg.id, res }); render(); };
 A.cofferResp = (el) => { const msg = G.inbox.find((x) => x.id === +el.dataset.id); const res = careerRespond(msg, el.dataset.v === "1"); openModal("msg", { id: msg.id, res }); faceCache.clear(); render(); };
 A.takeJob = (el) => { const msg = G.inbox.find((x) => x.id === +el.dataset.m); if (msg) msg.done = true; takeJob(+el.dataset.id); closeModal(); UI.page = "home"; render(); autosave(); };
+A.sponsResp = (el) => { const msg = G.inbox.find((x) => x.id === +el.dataset.id); const res = sponsorRespond(msg, el.dataset.v === "1"); openModal("msg", { id: msg.id, res }); render(); autosave(); };
+A.mgrTalk = (el) => { const v = el.dataset.k === "position" ? document.getElementById("posReq").value : ""; UI.talkRes = managerTalk(el.dataset.k, v); render(); autosave(); };
+A.signAgent = (el) => { toast(signAgent(+el.dataset.v)); render(); autosave(); };
+A.agentAct = (el) => { toast(agentAction(el.dataset.k)); render(); autosave(); };
 A.facUp = (el) => { const r = upgradeFacility(el.dataset.k); toast(r.msg); render(); if (r.ok) autosave(); };
 A.life = (el) => { const r = lifeAction(el.dataset.k, el.dataset.v); if (r) toast(r); render(); autosave(); };
 A.renameKid = (el) => { const i = +el.dataset.i, v = document.getElementById("kidName" + i).value.trim(); if (v) { G.career.life.kids[i].name = v; toast("Name saved."); render(); } };

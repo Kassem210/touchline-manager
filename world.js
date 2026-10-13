@@ -165,7 +165,6 @@ const SHOP = [
   { id: "pro1", cat: "Staff", n: "Personal trainer", price: 0, up: 4000, h: 1, fx: "You develop about 15% faster." },
   { id: "pro2", cat: "Staff", n: "Personal chef", price: 0, up: 2500, h: 2, fx: "You recover fitness faster between games." },
   { id: "pro3", cat: "Staff", n: "Private physio", price: 0, up: 3000, h: 1, fx: "Your injuries heal about a third faster." },
-  { id: "pro4", cat: "Staff", n: "Top agent", price: 150000, up: 0, h: 1, fx: "Clubs offer you about 15% higher wages." },
 ];
 const SHOP_BY = Object.fromEntries(SHOP.map((x) => [x.id, x]));
 const PARTNER_NAMES = "Sara Lina Maya Nour Hana Emma Sofia Laila Yasmin Amira Chloe Julia Leila Mariam Zoe Ines Clara Aya Salma Farida Mia Olivia Camille Elena Noor Dina Rania Malak Lucia Ana Hannah Grace".split(" ");
@@ -181,7 +180,7 @@ function lifeWeekly() {
   const L = G.career && G.career.life, p = pl(G.userPlayer);
   if (!L || !p) return;
   L.ap = 3;
-  const net = G.career.retired ? 0 : Math.round(p.wage * 0.55);
+  const net = G.career.retired ? 0 : Math.round(p.wage * (0.55 - agentOf().fee)) + (L.spons ? Math.round(L.spons.wk * 0.7) : 0);
   const upkeep = L.items.reduce((s, id) => s + (SHOP_BY[id] ? SHOP_BY[id].up : 0), 0);
   L.cash += net - upkeep;
   if (L.cash < 0) {
@@ -189,6 +188,20 @@ function lifeWeekly() {
     if (staff.length) { L.items = L.items.filter((id) => SHOP_BY[id].cat !== "Staff"); inbox({ t: "Money's tight", b: "Your account went into the red, so your personal staff have been let go. Sell something if you need cash.", type: "life" }); }
     L.happy = clamp(L.happy - 3, 0, 100);
   }
+  // partner mood
+  if (L.partner) {
+    if (L.pm == null) L.pm = 65;
+    const target = 60 + (L.status === "married" ? 5 : 0) + Math.min(10, L.kids.length * 4) + (L.cash > upkeep * 20 ? 5 : 0);
+    L.pm = r1(clamp(L.pm + (target - L.pm) * 0.06, 0, 100));
+    if (L.cash < 0) { L.broke = (L.broke || 0) + 1; partnerMood(-12, "You're broke and the bills aren't getting paid."); }
+    else if (L.cash < upkeep * 4) { L.broke = 0; partnerMood(-3, "Money is getting tight and it worries her."); }
+    else L.broke = 0;
+    if (L.broke >= 3 || L.pm <= 8) partnerLeaves(L.broke >= 3 ? `${L.partner} couldn't take the money problems any more.` : `${L.partner} says she can't be with you any more.`);
+    else if (L.pm < 30 && !L.pmWarned) { L.pmWarned = true; inbox({ t: `${L.partner} is angry`, b: `${L.pmWhy || "Things are tense at home."} Spend some time with her before it's too late.`, type: "life" }); }
+    else if (L.pm >= 45) L.pmWarned = false;
+  }
+  sponsorWeekly();
+  trustWeekly();
   L.happy = Math.round(clamp(L.happy + (lifeHappyTarget(L) - L.happy) * 0.12, 0, 100));
   if (!G.career.retired) p.mor = clamp(p.mor + (L.happy - 60) * 0.04, 5, 100);
   const f = p.form.length ? avg(p.form) : 6.5;
@@ -199,7 +212,7 @@ function lifeWeekly() {
     const boy = rnd() < 0.5;
     const nm = boy ? pick(NAMEPOOL[(NATIONS[p.nat] || NATIONS.ENG)[1]].f) : pick(PARTNER_NAMES);
     const peak = Math.max(p.o, ...p.hist.map((h) => h.o));
-    L.kids.push({ name: nm, by: G.season, g: boy ? "boy" : "girl", pot: clamp(Math.round(peak * 0.75 + 20 + randn() * 6), 55, 95) });
+    L.kids.push({ name: nm, by: G.season, g: boy ? "boy" : "girl", pot: clamp(Math.round(peak * 0.75 + 20 + randn() * 6), 55, 95), fb: boy && rnd() < kidFootballChance(peak) });
     L.happy = clamp(L.happy + 12, 0, 100);
     inbox({ t: `It's a ${boy ? "boy" : "girl"}!`, b: `${nm} ${p.ln} was born today. Congratulations!`, type: "life" });
   }
@@ -212,7 +225,13 @@ function lifeAction(kind, arg) {
     const it = SHOP_BY[arg]; if (!it) return "That isn't for sale.";
     if (L.items.includes(arg)) return "You already own that.";
     if (!spend(it.price)) return `You need ${money(it.price)}. You have ${money(L.cash)}.`;
+    const before = L.cash + it.price;
     L.items.push(arg); L.happy = clamp(L.happy + Math.ceil(it.h / 2), 0, 100);
+    if (L.partner && it.price) {
+      if (it.cat === "Homes") partnerMood(8, `She loves the new ${it.n.toLowerCase()}.`);
+      else if (it.price > before * 0.5) partnerMood(-18, `She's furious you spent ${money(it.price)} on a ${it.n.toLowerCase()} without asking.`);
+      else if (it.price > before * 0.25) partnerMood(-8, `She thinks the ${it.n.toLowerCase()} was a waste of money.`);
+    }
     return it.price ? `You bought the ${it.n.toLowerCase()}.` : `You hired a ${it.n.toLowerCase()}.`;
   }
   if (kind === "sell") {
@@ -222,20 +241,20 @@ function lifeAction(kind, arg) {
     L.cash += back;
     return it.price ? `Sold for ${money(back)}.` : `You let your ${it.n.toLowerCase()} go.`;
   }
-  if (kind === "breakup") { if (L.status === "single" || L.status === "married") return "There's nobody to break up with."; L.status = "single"; L.partner = null; L.rel = 0; L.happy = clamp(L.happy - 8, 0, 100); return "You've split up."; }
+  if (kind === "breakup") { if (L.status === "single" || L.status === "married") return "There's nobody to break up with."; L.status = "single"; L.partner = null; L.rel = 0; L.pm = null; L.happy = clamp(L.happy - 8, 0, 100); return "You've split up."; }
   if (!useAp()) return "You've used up your free time this week. Continue to next week.";
   if (kind === "date") {
     const d = DATES.find((x) => x[0] === arg) || DATES[0];
     if (!spend(d[2])) { L.ap++; return `That costs ${money(d[2])}.`; }
     if (L.status === "single") {
       if (rnd() < 0.28 + L.fame * 0.006 + (arg === "trip" ? 0.15 : arg === "dinner" ? 0.07 : 0)) {
-        L.partner = pick(PARTNER_NAMES); L.status = "dating"; L.rel = 25; L.happy = clamp(L.happy + 6, 0, 100);
+        L.partner = pick(PARTNER_NAMES); L.status = "dating"; L.rel = 25; L.pm = 70; L.pmWhy = ""; L.happy = clamp(L.happy + 6, 0, 100);
         return `You hit it off with ${L.partner}. You're seeing each other now.`;
       }
       L.happy = clamp(L.happy + 1, 0, 100);
       return "Nice evening, but no spark this time.";
     }
-    L.rel = clamp(L.rel + d[3] + ri(-2, 4), 0, 100); L.happy = clamp(L.happy + 3, 0, 100);
+    L.rel = clamp(L.rel + d[3] + ri(-2, 4), 0, 100); L.happy = clamp(L.happy + 3, 0, 100); partnerMood(d[3] * 0.7, "She loved your time together.");
     return `${L.partner} loved it. Your relationship is getting stronger.`;
   }
   if (kind === "propose") {
@@ -262,15 +281,149 @@ function lifeAction(kind, arg) {
   if (kind === "night") {
     if (!spend(3000)) { L.ap++; return "A night out costs €3K."; }
     L.happy = clamp(L.happy + 5, 0, 100); p.fit = clamp(p.fit - 12, 30, 100);
-    if (rnd() < 0.1) { L.happy = clamp(L.happy - 7, 0, 100); p.mor = clamp(p.mor - 6, 5, 100); L.fame = clamp(L.fame + 1, 0, 100); return "The papers got photos of your night out. The manager isn't happy."; }
+    partnerMood(-5, "She's tired of your nights out.");
+    if (rnd() < 0.1) { L.happy = clamp(L.happy - 7, 0, 100); p.mor = clamp(p.mor - 6, 5, 100); L.fame = clamp(L.fame + 1, 0, 100); G.career.trust = clamp((G.career.trust || 50) - 6, 0, 100); partnerMood(-15, "She saw the photos of your night out in the papers."); return "The papers got photos of your night out. The manager and your partner are both unhappy."; }
     return "Great night with the lads. A bit tired, though.";
   }
-  if (kind === "family") { L.happy = clamp(L.happy + 5, 0, 100); L.rel = clamp(L.rel + 5, 0, 100); p.mor = clamp(p.mor + 2, 5, 100); return "A quiet day with the family. Just what you needed."; }
+  if (kind === "family") { L.happy = clamp(L.happy + 5, 0, 100); L.rel = clamp(L.rel + 5, 0, 100); p.mor = clamp(p.mor + 2, 5, 100); partnerMood(9, "She enjoyed the family day."); return "A quiet day with the family. Just what you needed."; }
+  if (kind === "gift") {
+    if (!L.partner) { L.ap++; return "There's nobody to buy a gift for."; }
+    const cost = arg === "big" ? 50000 : 5000;
+    if (!spend(cost)) { L.ap++; return `That gift costs ${money(cost)}.`; }
+    partnerMood(arg === "big" ? 18 : 9, "She loved your gift."); L.rel = clamp(L.rel + 4, 0, 100);
+    return `${L.partner} loved the ${arg === "big" ? "jewellery" : "flowers"}.`;
+  }
+  if (kind === "talk") {
+    if (!L.partner) { L.ap++; return "There's nobody to talk to."; }
+    partnerMood(6, "You made time to talk.");
+    return L.pm < 40 ? `${L.partner}: "${L.pmWhy || "I just feel ignored."}" Talking helped a little.` : `${L.partner} seems ${moodWord(L.pm).toLowerCase()}. ${L.pmWhy ? "She mentions: " + L.pmWhy : ""}`;
+  }
   if (kind === "charity") { if (!spend(100000)) { L.ap++; return "The donation is €100K."; } L.happy = clamp(L.happy + 4, 0, 100); L.fame = clamp(L.fame + 3, 0, 100); return "Your donation made the news for all the right reasons."; }
   L.ap++;
   return "";
 }
 
+
+// ---------- agents, sponsors, manager relationship ----------
+const AGENTS = [
+  { id: 0, n: "No agent", fee: 0, wage: 0, offers: 0, spons: 0, fame: 0, d: "You handle your own deals." },
+  { id: 1, n: "Family friend", fee: 0.03, wage: 0.04, offers: 0.15, spons: 0.05, fame: 0, d: "Cheap and loyal, but few contacts." },
+  { id: 2, n: "Local agency", fee: 0.06, wage: 0.1, offers: 0.4, spons: 0.15, fame: 8, d: "Solid deals and a decent contact book." },
+  { id: 3, n: "International agency", fee: 0.1, wage: 0.17, offers: 0.8, spons: 0.3, fame: 20, d: "Big clubs return their calls." },
+  { id: 4, n: "Super-agent", fee: 0.15, wage: 0.25, offers: 1.2, spons: 0.5, fame: 40, d: "The best deals in football, for a big cut." },
+];
+const agentOf = () => AGENTS[(G.career && G.career.agent) || 0];
+function signAgent(id) {
+  const a = AGENTS[id], L = G.career.life;
+  if (!a) return "";
+  if (L.fame < a.fame) return `${a.n} only represent players with fame of ${a.fame} or more. Yours is ${Math.round(L.fame)}.`;
+  G.career.agent = id; G.career.agentSearch = false;
+  return id ? `You've signed with ${a.n}. They take ${Math.round(a.fee * 100)}% of your wages.` : "You've parted ways with your agent.";
+}
+function agentAction(kind) {
+  const a = agentOf(), p = pl(G.userPlayer);
+  if (!a.id) return "Sign with an agent first.";
+  if (kind === "search") { G.career.agentSearch = !G.career.agentSearch; return G.career.agentSearch ? `${a.n} will quietly sound out other clubs. Offers can arrive during the next transfer window.` : `${a.n} will stop looking for a move.`; }
+  if (kind === "contract") return careerRequest("contract");
+  return "";
+}
+const BRANDS = [
+  { id: "nike", n: "Nike", bg: "#111111", fg: "#ffffff", tier: 1.15 },
+  { id: "adidas", n: "adidas", bg: "#ffffff", fg: "#111111", tier: 1.1 },
+  { id: "puma", n: "PUMA", bg: "#c8102e", fg: "#ffffff", tier: 1 },
+  { id: "nb", n: "New Balance", bg: "#cf0a2c", fg: "#ffffff", tier: 0.9 },
+  { id: "ua", n: "Under Armour", bg: "#1d1d1d", fg: "#ffffff", tier: 0.85 },
+];
+const BRAND_BY = Object.fromEntries(BRANDS.map((b) => [b.id, b]));
+function sponsorWeekly() {
+  const L = G.career.life, p = pl(G.userPlayer);
+  if (L.spons && L.spons.until < G.season) { inbox({ t: `${BRAND_BY[L.spons.brand].n} deal ended`, b: "Your boot deal has run out. New offers may come in.", type: "life" }); L.spons = null; }
+  if (L.spons || G.career.retired) return;
+  if (G.inbox.some((m) => m.act && m.act.kind === "spons" && !m.done)) return;
+  if (p.o < 64 && L.fame < 12) return;
+  if (rnd() > 0.035 + L.fame * 0.001) return;
+  const ag = agentOf();
+  const b = wpick(BRANDS.map((x) => [x, x.id === "nike" || x.id === "adidas" ? (p.o >= 80 ? 3 : 1) : p.o >= 80 ? 1 : 2]));
+  const wk = Math.round((600 * Math.exp((p.o - 60) * 0.13) * (1 + L.fame / 40) * b.tier * (1 + ag.spons)) / 100) * 100;
+  const yrs = ri(2, 4);
+  inbox({ t: `${b.n} want to sponsor you`, b: `${b.n} offer a ${yrs}-year boot deal worth ${money(wk)} a week, plus a ${money(wk * 10)} signing bonus.`, type: "life", act: { kind: "spons", brand: b.id, wk, yrs } });
+}
+function sponsorRespond(msg, accept) {
+  msg.done = true;
+  if (!accept) return "You turned the deal down.";
+  const L = G.career.life, a = msg.act;
+  if (L.spons) return "You already have a boot deal.";
+  L.spons = { brand: a.brand, wk: a.wk, until: G.season + a.yrs - 1, since: G.season };
+  L.cash += a.wk * 10; L.fame = clamp(L.fame + 3, 0, 100);
+  return `You're now a ${BRAND_BY[a.brand].n} athlete. Signing bonus: ${money(a.wk * 10)}.`;
+}
+// selection bonus for the user's player when the AI picks a team
+function careerSelBonus() {
+  const C = G.career; if (!C) return 1.5;
+  return 1.5 + ((C.trust == null ? 50 : C.trust) - 50) / 20 + (C.promise && C.promise > absDay() ? 4 : 0);
+}
+function managerTalk(kind, arg) {
+  const C = G.career, p = pl(G.userPlayer), c = club(p.club);
+  if (C.trust == null) C.trust = 50;
+  if (C.talkCd && absDay() < C.talkCd) return `The manager is busy. Try again after ${fmtDate(Math.max(G.day, C.talkCd - G.season * 400))}.`;
+  C.talkCd = absDay() + 14;
+  const f = p.form.length ? avg(p.form.slice(-5)) : 6.4;
+  const rivals = squad(c.id).filter((q) => q.pos === p.pos).sort((a, b) => b.o - a.o);
+  const rank = rivals.findIndex((q) => q.id === p.id) + 1;
+  if (kind === "time") {
+    if (C.trust >= 45 || f >= 6.9 || rank <= 1) { C.promise = absDay() + 60; C.trust = clamp(C.trust + 1, 0, 100); return `"Keep working like this and you'll get your minutes." The manager promises you more game time over the next two months.`; }
+    C.trust = clamp(C.trust - 3, 0, 100); p.mor = clamp(p.mor - 3, 5, 100);
+    return `"You have to earn it in training first." No promises.`;
+  }
+  if (kind === "complain") {
+    if (rnd() < 0.45 && C.trust > 30) { C.promise = absDay() + 40; C.trust = clamp(C.trust - 5, 0, 100); return `"Fine. You'll get your chance. Don't waste it." He's annoyed, but you'll play more.`; }
+    C.trust = clamp(C.trust - 12, 0, 100); p.mor = clamp(p.mor - 6, 5, 100);
+    if (C.trust < 20 && !p.listed) { p.listed = 1; return `"If you're not happy, you can leave." The club have put you on the transfer list.`; }
+    return `"Nobody is bigger than this club." That didn't go well.`;
+  }
+  if (kind === "position") {
+    if (!POS_NEAR[p.pos].includes(arg) || arg === "GK") return "The manager won't consider that.";
+    const at = effAt(p, arg) + 3;
+    if (at >= p.o - 4) { const old = p.pos; p.pos = arg; calcOvr(p); C.trust = clamp(C.trust + 1, 0, 100); return `The manager agrees to try you at ${arg} instead of ${old}. Your rating there is ${p.o}.`; }
+    C.trust = clamp(C.trust - 2, 0, 100);
+    return `"You're not suited to ${arg}." Your rating there would only be about ${Math.round(at - 3)}.`;
+  }
+  if (kind === "feedback") {
+    const w = POS_W[p.pos];
+    const weak = [0, 1, 2, 3, 4, 5, 6].filter((i) => w[i] >= 0.1).sort((a, b) => p.a[a] - p.a[b])[0];
+    C.trust = clamp(C.trust + 1, 0, 100);
+    return `"You're number ${rank} of ${rivals.length} for your position here. Your recent form is ${f.toFixed(1)}. Work on your ${["pace", "shooting", "passing", "dribbling", "defending", "physical strength", "goalkeeping"][weak]} — it's the weakest part of your game." He sounds ${C.trust >= 65 ? "very positive about you" : C.trust >= 40 ? "fair" : "unconvinced"}.`;
+  }
+  if (kind === "captain") {
+    if (C.captain === p.club) return "You're already the captain.";
+    if (C.trust >= 78 && age(p) >= 23 && rank <= 1 && rivals.length && p.o >= squad(c.id).sort((a, b) => b.o - a.o)[2].o) { C.captain = p.club; G.career.life.fame = clamp(G.career.life.fame + 4, 0, 100); return `"You've earned it." You're the new club captain!`; }
+    C.trust = clamp(C.trust - 2, 0, 100);
+    return `"Not yet. Show me you're a leader first."`;
+  }
+  return "";
+}
+function trustWeekly() {
+  const C = G.career, p = pl(G.userPlayer);
+  if (!C || !p || C.retired) return;
+  if (C.trust == null) C.trust = 50;
+  const f = p.form.length ? avg(p.form.slice(-4)) : 6.5;
+  C.trust = r1(clamp(C.trust + (f - 6.7) * 0.8 + (50 - C.trust) * 0.01, 0, 100));
+  if (C.captain != null && C.captain !== p.club) C.captain = null;
+}
+const moodWord = (v) => (v >= 75 ? "Happy" : v >= 55 ? "Content" : v >= 35 ? "Upset" : "Angry");
+function partnerMood(d, why) {
+  const L = G.career.life;
+  if (!L.partner) return;
+  L.pm = clamp((L.pm == null ? 65 : L.pm) + d, 0, 100);
+  if (why) L.pmWhy = why;
+}
+function partnerLeaves(reason) {
+  const L = G.career.life, name = L.partner, married = L.status === "married";
+  let extra = "";
+  if (married && L.cash > 0) { const half = Math.round(L.cash / 2); L.cash -= half; extra = ` The divorce costs you ${money(half)}.`; }
+  L.status = "single"; L.partner = null; L.rel = 0; L.pm = null; L.due = null; L.happy = clamp(L.happy - 20, 0, 100);
+  inbox({ t: `${name} has left you`, b: `${reason}${extra}`, type: "life" });
+}
 function retireUser() {
   const p = pl(G.userPlayer);
   G.career.retired = `${G.season}/${(G.season + 1) % 100}`;
@@ -278,6 +431,8 @@ function retireUser() {
   if (p && p.club >= 0) { G.career.lastClub = p.club; releaseToFA(p); }
   if (p) p.ret = 1;
 }
+function kidFootballChance(peak) { return clamp(0.18 + (peak - 72) * 0.012, 0.12, 0.45); }
+const KID_JOBS = ["wants to be a doctor", "is into music", "loves video games more than football", "wants to be a pilot", "is set on studying law", "prefers basketball", "wants to be an architect", "is a gifted painter"];
 function seasonsUntil16(kid) { return Math.max(0, 16 - (G.season - kid.by)); }
 // Fast-forward one season without playing matches (used for legacy time skips)
 function fastSeason() {
@@ -339,6 +494,13 @@ function migrateSave() {
   if (!G.nations) buildNations();
   G.clubs.forEach((c) => { if (!c.fac) initFacilities(c); });
   if (G.mode === "career" && G.career && !G.career.life) G.career.life = newLife();
+  if (G.mode === "career" && G.career) {
+    const L = G.career.life;
+    if (L.items.includes("pro4")) { L.items = L.items.filter((x) => x !== "pro4"); if (!G.career.agent) G.career.agent = 3; }
+    L.kids.forEach((k) => { if (k.fb == null) k.fb = k.g === "boy" && rnd() < kidFootballChance(70); });
+    if (L.partner && L.pm == null) L.pm = 65;
+    if (G.career.trust == null) G.career.trust = 50;
+  }
   if (G.seasonEnd == null) G.seasonEnd = SEASON_END;
   if (!G.ntCalls) G.ntCalls = {};
   if (!G.comps.INTL) G.comps.INTL = { id: "INTL", type: "intl", name: "Internationals" };
