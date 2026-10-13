@@ -234,13 +234,22 @@ table.t td.c, table.t th.c { text-align: center; }
   .editgrid .nat { display: none; }
   .hide-sm { display: none !important; }
 }
+.moment { border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--panel)); border-radius: 12px; padding: 14px 16px; }
+.moment.done { border-width: 1px; padding: 10px 14px; }
+.moment.done.good { border-color: var(--win); } .moment.done.bad { border-color: var(--loss); background: color-mix(in srgb, var(--loss) 8%, var(--panel)); }
+.moment .btn { font-size: 1rem; padding: 10px 16px; }
+.facrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.facrow:last-child { border-bottom: 0; }
+.lvl { color: var(--accent); letter-spacing: 1px; font-size: 11px; margin-left: 6px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
 <div id="app"><div class="loading">Loading Touchline…</div></div>
 <script src="data.js"></script>
+<script src="real.js"></script>
 <script src="engine.js"></script>
+<script src="world.js"></script>
 <script src="match.js"></script>
 <script src="ui.js"></script>
 </body>

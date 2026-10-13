@@ -537,10 +537,36 @@ const NATIONS = {
   POL: ["Poland", "sla", [0.97, 0.03, 0]], JPN: ["Japan", "jpn", "asian"],
   KOR: ["South Korea", "kor", "asian"], USA: ["United States", "usa", [0.5, 0.2, 0.3]],
   AUT: ["Austria", "ger", [0.85, 0.1, 0.05]], SUI: ["Switzerland", "ger", [0.75, 0.12, 0.13]],
+  GEO: ["Georgia", "sla", [0.9, 0.1, 0]], HUN: ["Hungary", "sla", [0.95, 0.05, 0]], UKR: ["Ukraine", "sla", [0.97, 0.03, 0]],
+  SVK: ["Slovakia", "sla", [0.97, 0.03, 0]], SVN: ["Slovenia", "sla", [0.97, 0.03, 0]], CZE: ["Czechia", "sla", [0.97, 0.03, 0]],
+  KOS: ["Kosovo", "sla", [0.9, 0.1, 0]], BIH: ["Bosnia and Herzegovina", "sla", [0.95, 0.05, 0]], GRE: ["Greece", "ita", [0.8, 0.2, 0]],
+  ARM: ["Armenia", "tur", [0.6, 0.4, 0]], ISL: ["Iceland", "sca", [0.97, 0.03, 0]], IRL: ["Ireland", "eng", [0.88, 0.04, 0.08]],
+  WAL: ["Wales", "eng", [0.88, 0.04, 0.08]], NIR: ["Northern Ireland", "eng", [0.95, 0.03, 0.02]],
+  ECU: ["Ecuador", "lat", [0.15, 0.45, 0.4]], MEX: ["Mexico", "lat", [0.35, 0.6, 0.05]], CHI: ["Chile", "lat", [0.5, 0.5, 0]],
+  CAN: ["Canada", "usa", [0.5, 0.2, 0.3]], AUS: ["Australia", "eng", [0.8, 0.12, 0.08]], NZL: ["New Zealand", "eng", [0.85, 0.1, 0.05]],
+  UZB: ["Uzbekistan", "tur", [0.5, 0.5, 0]], GUI: ["Guinea", "waf", [0, 0.03, 0.97]], GAB: ["Gabon", "waf", [0, 0.03, 0.97]],
+  BFA: ["Burkina Faso", "waf", [0, 0.03, 0.97]], COD: ["DR Congo", "waf", [0, 0.03, 0.97]], ZAM: ["Zambia", "ngh", [0, 0.03, 0.97]],
+  CPV: ["Cape Verde", "por", [0.05, 0.45, 0.5]], ANG: ["Angola", "por", [0, 0.1, 0.9]], GAM: ["Gambia", "waf", [0, 0.03, 0.97]],
+};
+// National-team kit colours [home, trim]
+const NAT_KIT = {
+  ENG: ["#f5f5f5", "#1d3a8a"], SCO: ["#1b2a5c", "#ffffff"], ESP: ["#c8102e", "#f6c200"], GER: ["#f5f5f5", "#111111"], ITA: ["#1f5fbf", "#ffffff"],
+  FRA: ["#1b2a5c", "#c8102e"], NED: ["#f47a20", "#ffffff"], POR: ["#b01e2d", "#1f7a3a"], TUR: ["#d81e2c", "#ffffff"], BEL: ["#c8102e", "#f6c200"],
+  EGY: ["#c8102e", "#ffffff"], MAR: ["#c1272d", "#006233"], TUN: ["#e70013", "#ffffff"], ALG: ["#f5f5f5", "#006233"], RSA: ["#f6c200", "#007a4d"],
+  SEN: ["#f5f5f5", "#00853f"], CIV: ["#f77f00", "#009e60"], MLI: ["#fcd116", "#14b53a"], CMR: ["#007a5e", "#ce1126"], NGA: ["#008751", "#ffffff"],
+  GHA: ["#f5f5f5", "#000000"], BRA: ["#fedf00", "#009c3b"], ARG: ["#75aadb", "#ffffff"], URU: ["#5cbfeb", "#111111"], COL: ["#fcd116", "#003893"],
+  DEN: ["#c60c30", "#ffffff"], NOR: ["#ba0c2f", "#00205b"], SWE: ["#fecc00", "#006aa7"], CRO: ["#e8e8e8", "#e30a17"], SRB: ["#c6363c", "#0c4076"],
+  POL: ["#f5f5f5", "#dc143c"], JPN: ["#1d2088", "#ffffff"], KOR: ["#cd2e3a", "#0047a0"], USA: ["#f5f5f5", "#0a3161"], AUT: ["#ed2939", "#ffffff"],
+  SUI: ["#d52b1e", "#ffffff"], GEO: ["#f5f5f5", "#e8112d"], HUN: ["#ce2939", "#477050"], UKR: ["#ffd500", "#005bbb"], SVK: ["#f5f5f5", "#0b4ea2"],
+  SVN: ["#f5f5f5", "#005da4"], CZE: ["#d7141a", "#11457e"], KOS: ["#244aa5", "#d0a650"], BIH: ["#002395", "#fecb00"], GRE: ["#0d5eaf", "#ffffff"],
+  ARM: ["#d90012", "#0033a0"], ISL: ["#02529c", "#dc1e35"], IRL: ["#169b62", "#ffffff"], WAL: ["#c8102e", "#ffffff"], NIR: ["#1f7a3a", "#ffffff"],
+  ECU: ["#ffd100", "#034ea2"], MEX: ["#006847", "#ffffff"], CHI: ["#d52b1e", "#0039a6"], CAN: ["#d80621", "#ffffff"], AUS: ["#ffcd00", "#00843d"],
+  NZL: ["#f5f5f5", "#111111"], UZB: ["#f5f5f5", "#1eb53a"], GUI: ["#ce1126", "#fcd116"], GAB: ["#fcd116", "#009e60"], BFA: ["#009e49", "#ef2b2d"],
+  COD: ["#007fff", "#ce1021"], ZAM: ["#198a00", "#ef7d00"], CPV: ["#003893", "#cf2027"], ANG: ["#cc092f", "#111111"], GAM: ["#3a7728", "#ce1126"],
 };
 
-const FOREIGN_EU = "BRA:8 FRA:8 ESP:5 POR:5 ARG:6 NED:4 GER:4 BEL:3 SEN:4 CIV:4 NGA:4 GHA:3 CMR:3 MAR:4 ALG:2 CRO:3 SRB:3 DEN:3 NOR:2 SWE:2 POL:3 URU:3 COL:3 USA:2 JPN:3 KOR:2 MLI:2 AUT:2 SUI:2 ENG:4 ITA:2 TUR:1 EGY:1 SCO:1 TUN:1";
-const FOREIGN_AF = "CIV:4 NGA:4 GHA:4 MLI:4 SEN:3 CMR:4 MAR:2 TUN:2 ALG:2 EGY:2 RSA:2 BRA:1";
+const FOREIGN_EU = "GEO:1 HUN:1.5 UKR:2 SVK:1 SVN:1 CZE:1.5 KOS:1 BIH:1 GRE:1.5 IRL:1.5 WAL:1 ECU:2 MEX:1 CHI:1 CAN:1 AUS:1 GUI:1.5 COD:1.5 BFA:1 GAB:0.6 CPV:0.6 ANG:0.6 BRA:8 FRA:8 ESP:5 POR:5 ARG:6 NED:4 GER:4 BEL:3 SEN:4 CIV:4 NGA:4 GHA:3 CMR:3 MAR:4 ALG:2 CRO:3 SRB:3 DEN:3 NOR:2 SWE:2 POL:3 URU:3 COL:3 USA:2 JPN:3 KOR:2 MLI:2 AUT:2 SUI:2 ENG:4 ITA:2 TUR:1 EGY:1 SCO:1 TUN:1";
+const FOREIGN_AF = "GUI:3 COD:4 BFA:3 ZAM:3 ANG:2 CPV:2 GAB:2 GAM:2 CIV:4 NGA:4 GHA:4 MLI:4 SEN:3 CMR:4 MAR:2 TUN:2 ALG:2 EGY:2 RSA:2 BRA:1";
 
 const SKIN = ["#f6d7bf", "#ebbf9c", "#d9a57d", "#c08a5f", "#9a6643", "#6f452c", "#4a2d1c"];
 const HAIR_COLORS = { black: "#1b1612", dark: "#3a271b", brown: "#6a4428", light: "#a0703f", blond: "#d8b166", red: "#a2492a", grey: "#9a9a96" };

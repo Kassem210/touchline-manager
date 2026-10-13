@@ -47,11 +47,11 @@ function ovrAt(p, pos) { const w = POS_W[pos]; let s = 0; for (let i = 0; i < 7;
 function calcOvr(p) { p.o = Math.round(ovrAt(p, p.pos)); return p.o; }
 function famPenalty(p, pos) { if (p.pos === pos) return 0; if (pos === "GK" || p.pos === "GK") return 35; return POS_NEAR[p.pos].includes(pos) ? 3 : 9; }
 function effAt(p, pos) { return ovrAt(p, pos) - famPenalty(p, pos); }
-const club = (id) => G.clubs[id];
+const club = (id) => (typeof id === "string" ? G.nations[id] : G.clubs[id]);
 const pl = (id) => G.players[id];
 const leagueOf = (c) => G.leagues[c.lg];
-const clubMoney = (c) => leagueOf(c).money;
-const squad = (cid) => G.clubs[cid].sq.map(pl).filter(Boolean);
+const clubMoney = (c) => (c.nt ? 0.3 : leagueOf(c).money);
+const squad = (cid) => club(cid).sq.map(pl).filter(Boolean);
 const fullName = (p) => (p.fn ? p.fn + " " : "") + p.ln;
 const shortName = (p) => (p.fn ? p.fn[0] + ". " : "") + p.ln;
 
@@ -160,7 +160,7 @@ function genClubFinances(c) {
 
 // ---------- new game ----------
 function newWorld(opts) {
-  G = { v: 1, id: "s" + Date.now().toString(36), name: opts.saveName || "New save", mode: opts.mode, season: 2026, day: 0, created: Date.now(), nextP: 1,
+  G = { v: 2, real: !!opts.real, id: "s" + Date.now().toString(36), name: opts.saveName || "New save", mode: opts.mode, season: 2026, day: 0, created: Date.now(), nextP: 1,
     clubs: [], players: {}, leagues: {}, comps: {}, fx: [], inbox: [], news: [], hist: { lg: {}, cup: {}, euro: {}, awards: [] },
     userClub: null, userPlayer: null, mgr: { name: opts.managerName || "You", conf: 65, hist: [], trophies: [] }, career: null, msgSeq: 1, lastStop: null };
   LEAGUE_DATA.forEach((L) => {
@@ -180,6 +180,8 @@ function newWorld(opts) {
     customId = target.id;
   }
   G.clubs.forEach((c) => genSquad(c, c.id === customId ? opts.custom.names : null));
+  if (opts.real) applyRealPlayers();
+  G.clubs.forEach(initFacilities);
   // free agents
   for (let i = 0; i < 160; i++) {
     const pos = pick(POSITIONS.concat(["CB", "CM", "ST", "GK"]));
@@ -187,11 +189,12 @@ function newWorld(opts) {
     p.club = -1; p.wage = wageFor(p, null); p.ce = null; p.val = playerValue(p);
   }
   G.clubs.forEach(genClubFinances);
+  buildNations();
   if (opts.mode === "manager") {
     G.userClub = customId != null ? customId : opts.clubId;
     const uc = club(G.userClub); uc.form = "4-3-3"; uc.auto = true; autoLineup(uc, true);
   } else {
-    G.career = { tf: 2, trophies: [], awards: [], started: G.season, caps: 0, req: null, offers: [] };
+    G.career = { tf: 2, trophies: [], awards: [], started: G.season, caps: 0, req: null, offers: [], life: newLife(), called: false };
     const cp = opts.player, c = club(opts.clubId);
     const p = genPlayer({ pos: cp.pos, ovr: cp.ovr, ag: cp.age, nat: cp.nat, cid: c.id, pot: cp.pot, names: [cp.fn, cp.ln] });
     if (cp.face) p.face = cp.face; if (cp.ph) p.ph = cp.ph; p.foot = cp.foot || p.foot;
@@ -248,7 +251,7 @@ function roundRobin(ids) {
 
 function initSeason(first) {
   G.fx = []; DAYIDX = {}; G.comps = {};
-  const sats = daysWith(6, 8, 292), tues = daysWith(2, 30, 280), weds = daysWith(3, 38, 282);
+  const sats = daysWith(6, 8, 292).filter((d) => !inIntl(d)), tues = daysWith(2, 30, 280).filter((d) => !inIntl(d)), weds = daysWith(3, 38, 282).filter((d) => !inIntl(d));
   for (const id in G.leagues) {
     const lg = G.leagues[id]; lg.table = {};
     lg.clubs.forEach((c) => (lg.table[c] = [0, 0, 0, 0, 0, 0, 0]));
@@ -283,6 +286,7 @@ function initSeason(first) {
     const info = COMP_INFO[cid];
     if (info.region === "EU") setupEuro(cid, teams); else setupGroups(cid, teams);
   }
+  if (G.nations) { scheduleInternational(); scheduleSummer(); }
   G.day = 0;
   G.clubs.forEach((c) => (c.seasonRes = { w: 0, d: 0, l: 0 }));
 }
@@ -356,12 +360,12 @@ function nextStage(comp) {
     if (comp.si === 0) {
       const w = comp.groups.map((g) => sortTable(comp.table, g));
       comp.gOrder = w;
-      pairs = [[w[1][1], w[0][0]], [w[0][1], w[1][0]], [w[3][1], w[2][0]], [w[2][1], w[3][0]]];
+      for (let g = 0; g + 1 < w.length; g += 2) pairs.push([w[g + 1][1], w[g][0]], [w[g][1], w[g + 1][0]]);
     } else { shuffle(alive); for (let i = 0; i + 1 < alive.length; i += 2) pairs.push([alive[i], alive[i + 1]]); }
   }
   comp.ties = pairs.map(([a, b]) => {
     const t = { a, b, f: [], w: null };
-    if (st.legs === 1) t.f.push(addFx({ c: comp.id, d: st.days[0], h: a, a: b, k: 1, n: st.neutral ? 1 : 0, s: st.name }));
+    if (st.legs === 1) t.f.push(addFx({ c: comp.id, d: st.days[0], h: a, a: b, k: 1, n: st.neutral ? 1 : 0, nt: comp.nt ? 1 : 0, s: st.name }));
     else { const l1 = addFx({ c: comp.id, d: st.days[0], h: a, a: b, s: st.name + " · 1st leg" }); t.f.push(l1, addFx({ c: comp.id, d: st.days[1], h: b, a: a, k: 1, l1, s: st.name + " · 2nd leg" })); }
     return t;
   });
@@ -375,7 +379,7 @@ function sortTable(table, ids) {
 function checkComps() {
   for (const id in G.comps) {
     const comp = G.comps[id];
-    if (comp.type === "league" || comp.done) continue;
+    if (comp.type === "league" || comp.type === "intl" || comp.done) continue;
     if (comp.si === -1) {
       if (G.day < Math.max(...(comp.lpDays || comp.gDays))) continue;
       const left = G.fx.some((f) => f.c === id && !f.p && !f.k && !f.l1 && f.s && (f.s.startsWith("League phase") || f.s.startsWith("Group")));
@@ -396,12 +400,12 @@ function onCompWon(comp) {
   const key = comp.type === "cup" ? "cup" : "euro";
   (G.hist[key][comp.id] = G.hist[key][comp.id] || []).push({ s: G.season, w: comp.winner, n: c.name });
   news(`${c.name} win the ${comp.name}`, `${c.name} lift the ${comp.name} trophy for the ${G.season}/${(G.season + 1) % 100} season.`);
-  if (comp.type !== "cup") { const info = COMP_INFO[comp.id]; c.bal += info.prize * 0.5; }
+  if (comp.type !== "cup" && c.bal != null) { const info = COMP_INFO[comp.id]; c.bal += info.prize * 0.5; }
   awardUserTrophy(comp.winner, comp.name);
 }
 function awardUserTrophy(cid, name) {
   if (G.mode === "manager" && cid === G.userClub) { G.mgr.trophies.push({ s: G.season, n: name, c: club(cid).name }); inbox({ t: `Trophy: ${name}!`, b: `Your ${club(cid).name} side have won the ${name}. The board are delighted.`, type: "board" }); G.mgr.conf = clamp(G.mgr.conf + 15, 0, 100); }
-  if (G.mode === "career") { const p = pl(G.userPlayer); if (p && p.club === cid) { G.career.trophies.push({ s: G.season, n: name, c: club(cid).name }); inbox({ t: `You won the ${name}!`, b: `A medal for your collection with ${club(cid).name}.`, type: "career" }); } }
+  if (G.mode === "career") { const p = pl(G.userPlayer); if (p && (p.club === cid || (typeof cid === "string" && p.nat === cid && club(cid).sq.includes(p.id)))) { G.career.trophies.push({ s: G.season, n: name, c: club(cid).name }); inbox({ t: `You won the ${name}!`, b: `A medal for your collection with ${club(cid).name}.`, type: "career" }); } }
 }
 
 // ---------- tables ----------
@@ -416,18 +420,18 @@ function applyResult(f) {
       h[0]++; a[0]++; h[4] += f.hg; h[5] += f.ag; a[4] += f.ag; a[5] += f.hg;
       if (f.hg > f.ag) { h[1]++; a[3]++; h[6] += 3; } else if (f.hg < f.ag) { a[1]++; h[3]++; a[6] += 3; } else { h[2]++; a[2]++; h[6]++; a[6]++; }
     }
-    if (comp.type !== "league") { const info = COMP_INFO[f.c]; if (f.hg !== f.ag) club(f.hg > f.ag ? f.h : f.a).bal += info.win; }
+    if (comp.type !== "league") { const info = COMP_INFO[f.c], wc = club(f.hg > f.ag ? f.h : f.a); if (info && f.hg !== f.ag && wc.bal != null) wc.bal += info.win; }
   }
   const hc = club(f.h), ac = club(f.a);
   if (hc.seasonRes) { if (f.hg > f.ag) { hc.seasonRes.w++; ac.seasonRes.l++; } else if (f.hg < f.ag) { ac.seasonRes.w++; hc.seasonRes.l++; } else { hc.seasonRes.d++; ac.seasonRes.d++; } }
-  if (!f.n && comp.type !== "league" || comp.type === "league") hc.bal += gateMoney(hc);
+  if (!f.nt && (!f.n || comp.type === "league")) hc.bal += gateMoney(hc);
   // knockout resolution
   if (f.k) {
     const tie = comp.ties.find((t) => t.f.includes(f.i));
     if (tie) tie.w = f.w;
   }
 }
-function gateMoney(c) { return Math.round(25000 * Math.exp((c.rep - 60) * 0.09) * Math.pow(clubMoney(c), 0.5) * 8); }
+function gateMoney(c) { return Math.round(25000 * Math.exp((c.rep - 60) * 0.09) * Math.pow(clubMoney(c), 0.5) * 8 * (0.7 + facLvl(c, "stad") * 0.15)); }
 
 // ---------- lineups ----------
 function available(p) { return p && p.inj <= 0 && p.sus <= 0; }
@@ -476,7 +480,7 @@ function validateUserLineup(c) {
 }
 
 // ---------- daily / weekly ----------
-function isUserFx(f) { return f.h === G.userClub || f.a === G.userClub; }
+function isUserFx(f) { return f.h === G.userClub || f.a === G.userClub || userInNationFx(f); }
 function userFxOn(day) { return (DAYIDX[day] || []).map((i) => G.fx[i]).find((f) => isUserFx(f)); }
 function nextUserFx() { return G.fx.filter((f) => isUserFx(f) && !f.p).sort((a, b) => a.d - b.d)[0]; }
 
@@ -494,7 +498,7 @@ function endDay() {
   checkComps();
   for (const id in G.players) {
     const p = G.players[id];
-    if (p.fit < 100) p.fit = Math.min(100, p.fit + 6);
+    if (p.fit < 100) p.fit = Math.min(100, p.fit + (p.id === G.userPlayer && hasItem("pro2") ? 8 : 6));
     if (p.inj > 0) { p.inj--; if (p.inj === 0 && p.club === G.userClub && G.mode === "manager") inbox({ t: `${shortName(p)} is fit again`, b: `${fullName(p)} has recovered from injury and is available for selection.`, type: "medical" }); }
   }
   if (inWindow()) aiTransferDay();
@@ -504,6 +508,7 @@ function endDay() {
     const exp = squad(G.userClub).filter((p) => p.ce != null && p.ce <= G.season);
     if (exp.length) inbox({ t: `${exp.length} contract${exp.length > 1 ? "s" : ""} expiring`, b: `${exp.map(fullName).join(", ")} ${exp.length > 1 ? "are" : "is"} out of contract this summer and will leave unless you offer a new deal from the player's profile.`, type: "board" });
   }
+  prepDay(G.day + 1);
   if (G.day === WINDOWS[1][0]) inbox({ t: "January transfer window open", b: `The window is open until ${fmtDate(WINDOWS[1][1])}.`, type: "transfer" });
   G.day++;
 }
@@ -520,7 +525,7 @@ function weekly() {
     c.wages = wages;
   });
   if (G.mode === "manager") boardCheck();
-  if (G.mode === "career") careerWeekly();
+  if (G.mode === "career") { careerWeekly(); lifeWeekly(); }
 }
 
 function develop(p) {
@@ -535,6 +540,8 @@ function develop(p) {
   delta += randn() * 0.05;
   const isUser = p.id === G.userPlayer;
   if (isUser && ag <= 30) delta *= 1.1;
+  if (delta > 0 && p.club >= 0) delta *= 1 + (facLvl(club(p.club), "train") - 2) * 0.08;
+  if (delta > 0 && isUser && hasItem("pro1")) delta *= 1.15;
   if (Math.abs(delta) < 0.001) return;
   const w = POS_W[p.pos];
   for (let i = 0; i < 7; i++) {
@@ -731,11 +738,11 @@ function careerOffers() {
   if (G.inbox.some((m) => m.act && m.act.kind === "coffer" && !m.done)) return;
   const cur = club(p.club);
   const lvl = p.o + Math.max(0, f - 6.8) * 4;
-  const cands = G.clubs.filter((c) => c.id !== cur.id && c.rep >= lvl - 3 && c.rep <= lvl + 6 && c.budget >= p.val * 0.8);
+  const cands = G.clubs.filter((c) => c.id !== cur.id && c.rep >= lvl - 3 && c.rep <= lvl + 6 && c.rep > cur.rep - 2 && (c.budget >= p.val * 0.6 || c.rep >= 82));
   if (!cands.length) return;
   const b = pick(cands);
   const fee = Math.round(p.val * (0.9 + rnd() * 0.4) / 1e5) * 1e5;
-  const wage = Math.round(wageFor(p, b) * (1.1 + rnd() * 0.3) / 100) * 100;
+  const wage = Math.round(wageFor(p, b) * (1.1 + rnd() * 0.3) * (hasItem("pro4") ? 1.15 : 1) / 100) * 100;
   inbox({ t: `Transfer offer: ${b.name}`, b: `${b.name} (${leagueOf(b).name}) have agreed a ${money(fee)} fee with ${cur.name} and offer you ${money(wage)}/wk on a ${ri(3, 5)}-year contract.`, type: "career", act: { kind: "coffer", cid: b.id, fee, wage } });
 }
 function careerRespond(msg, accept) {
@@ -872,7 +879,7 @@ function endSeason() {
     for (let i = 0; i < n; i++) {
       const pos = pick(POSITIONS.concat(["CM", "ST", "CB", "LW", "RW"]));
       const gem = rnd() < 0.04;
-      const p = genPlayer({ pos, ovr: ri(38, 50) + (c.rep > 75 ? 4 : 0), ag: ri(16, 17), nat: rnd() < Math.max(lg.dom, 0.7) ? lg.nat : pickNat(lg), cid: c.id, pot: clamp(Math.round(c.rep - 2 + randn() * 6 + (gem ? 14 : 0)), 50, 94) });
+      const p = genPlayer({ pos, ovr: ri(38, 50) + (c.rep > 75 ? 4 : 0), ag: ri(16, 17), nat: rnd() < Math.max(lg.dom, 0.7) ? lg.nat : pickNat(lg), cid: c.id, pot: clamp(Math.round(c.rep - 2 + randn() * 6 + (gem ? 14 : 0) + (facLvl(c, "youth") - 2) * 2), 50, 94) });
       setContract(p, c, 3); c.sq.push(p.id);
       if (c.id === G.userClub && G.mode === "manager") inbox({ t: `Youth intake: ${fullName(p)}`, b: `${fullName(p)} (${p.pos}, age ${age(p)}) has joined from the academy. The coaches rate his potential ${starsText(p.pot)}.`, type: "youth" });
     }
@@ -929,7 +936,7 @@ function money(v) {
 function advance(maxDays = 40) {
   if (G.sacked && G.mode === "manager") return { stop: "sacked" };
   for (let n = 0; n < maxDays; n++) {
-    if (G.day > SEASON_END) { endSeason(); return { stop: "season" }; }
+    if (G.day > (G.seasonEnd || SEASON_END)) { endSeason(); return { stop: "season" }; }
     const uf = userFxOn(G.day);
     if (uf && !uf.p && !(uf.l1 != null && !G.fx[uf.l1].p)) return { stop: "match", f: uf };
     const before = G.msgSeq;
