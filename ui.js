@@ -923,7 +923,7 @@ function adBoard() {
   if (UI.live) { const h = club(UI.live.m.f.h); extra.push({ t: `WELCOME TO ${h.name.toUpperCase()}`, bg: h.c1, fg: lum(h.c1) > 0.6 ? "#111" : "#fff" }); }
   if (G.mode === "career" && G.career && G.career.life && G.career.life.spons) { const b = BRAND_BY[G.career.life.spons.brand]; extra.push({ t: b.n, bg: b.bg, fg: b.fg }); }
   const list = PITCH_ADS.concat(extra);
-  const one = list.map((a) => `<span class="adb" style="background:${a.bg};color:${a.fg}">${esc(a.t)}</span>`).join("");
+  const one = list.map((a) => `<span class="adb ${a.cls || ""}" style="background:${a.bg};color:${a.fg}">${a.img ? `<img src="${esc(a.img)}" alt="${esc(a.t)}">` : `${esc(a.t)}${a.ar ? ` <span class="ad-ar" lang="ar">${esc(a.ar)}</span>` : ""}`}</span>`).join("");
   return `<div class="ads"><div class="ads-run">${one}${one}</div></div>`;
 }
 function trackerStep(L, evs) {
@@ -1380,7 +1380,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610141654";
+const BUILD = "202610141712";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;
