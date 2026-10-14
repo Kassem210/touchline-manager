@@ -53,11 +53,16 @@ function faOffer() {
 // Five straight seasons at one club makes you a legend there. The fans never forget.
 function legendHere() { const C = G.career, p = pl(G.userPlayer); return !!(C && p && p.club >= 0 && (C.legends || []).includes(club(p.club).name)); }
 function seasonsAtClub(p, name) { let n = 0; for (let i = p.hist.length - 1; i >= 0 && p.hist[i].cn === name; i--) n++; return n; }
+function goalsAtClub(p, name) { return p.hist.reduce((s, h) => s + (h.cn === name ? h.g : 0), 0) + (p.loan ? 0 : p.st.g); }
+// Legend status comes from five straight seasons or 100 goals for the club.
 function checkLegend(p) {
   const C = G.career; if (!C || C.retired || p.club < 0) return;
-  const c = club(p.club), n = seasonsAtClub(p, c.name);
+  const c = club(p.club);
   C.legends = C.legends || [];
-  if (n < 5 || C.legends.includes(c.name)) return;
+  if (C.legends.includes(c.name)) return;
+  const seasons = seasonsAtClub(p, c.name) >= 5, goals = goalsAtClub(p, c.name) >= 100;
+  if (!seasons && !goals) return;
+  const why = goals ? `100 goals for ${c.name}` : `Five seasons at ${c.name}`;
   C.legends.push(c.name);
   const L = C.life;
   crep(8); L.fame = clamp(L.fame + 8, 0, 100); L.happy = clamp(L.happy + 10, 0, 100);
@@ -66,7 +71,7 @@ function checkLegend(p) {
   partnerMood(5, "She's so proud of what you mean to that club.", "fame");
   const an = /^[AEIOU]/i.test(c.name) ? "an" : "a";
   headline(`${fullName(p)} is now ${an} ${c.name} legend`);
-  inbox({ t: `You're ${an} ${c.name} legend`, b: `Five seasons at ${c.name}. The fans sing your name, there's a mural of you outside the stadium, and the club has rewarded your loyalty with a 15% raise. From now on the club and the fans will forgive you more, and the manager trusts you more.`, type: "career" });
+  inbox({ t: `You're ${an} ${c.name} legend`, b: `${why}. The fans sing your name, there's a mural of you outside the stadium, and the club has rewarded your loyalty with a 15% raise. From now on the club and the fans will forgive you more, and the manager trusts you more.`, type: "career" });
 }
 const LEGEND_CHANTS = ["The whole stadium sang {n}'s name for ten minutes", "Fans unveil a giant banner of {n}", "{n} gets a standing ovation from the home end", "\"There's only one {n}\": the chant rings round the ground"];
 
@@ -78,6 +83,7 @@ function careerAfterMatch(f, m) {
   else if (L.r >= 8.8) headline(`${fullName(p)} runs the show in a ${L.r.toFixed(1)}-rated masterclass`);
   if (m.ev.some((e) => e.t === "rc" && e.p === p.id)) { headline(`${fullName(p)} sees red`); cdisc(5, "sent off"); }
   crep(L.r >= 7.5 ? 0.6 : L.r < 5.8 ? -0.4 : 0);
+  if (L.g && !p.loan) checkLegend(p);
   if (legendHere()) {
     p.mor = clamp(p.mor + 1, 5, 100);
     if (s != null && f.h === p.club && (L.g || L.r >= 7.8) && rnd() < 0.25) headline(pick(LEGEND_CHANTS).replace("{n}", fullName(p)));

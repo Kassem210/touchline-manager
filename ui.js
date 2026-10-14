@@ -603,7 +603,7 @@ function careerStatus(p, cr) {
   const press = (cr.press || []).slice(0, 5).map((h) => `<div class="headline"><span class="small muted">${fmtDate(h.d, { season: h.s })} ${h.s}</span><b>${esc(h.t)}</b></div>`).join("");
   const cbBanner = cr.comeback && !cr.comebackDone && !cr.retired ? `<div class="moment" style="margin-bottom:16px"><b>The comeback.</b> You came out of retirement to help ${esc(club(cr.comeback.cid).name)}. You retire for good at the end of ${cr.comeback.until}/${(cr.comeback.until + 1) % 100}.</div>` : "";
   const here = !cr.retired && p.club >= 0 ? club(p.club).name : null, inRow = here ? seasonsAtClub(p, here) : 0;
-  const legendHTML = (cr.legends || []).length || (here && inRow >= 1) ? `<div class="panel" style="margin-bottom:16px"><h3>Club legend</h3>${(cr.legends || []).map((n) => `<span class="chip gold" style="margin:0 6px 6px 0">★ ${esc(n)} legend</span>`).join("")}${here && !(cr.legends || []).includes(here) ? `<div class="small muted">${inRow} of 5 straight seasons completed at ${esc(here)}. Reach 5 and you become a club legend: the fans forgive more, the manager trusts you, and you get a loyalty raise.</div>` : here ? `<div class="small muted">The ${esc(here)} fans adore you. They forgive your mistakes more easily, and the manager will always trust you.</div>` : ""}</div>` : "";
+  const legendHTML = (cr.legends || []).length || here ? `<div class="panel" style="margin-bottom:16px"><h3>Club legend</h3>${(cr.legends || []).map((n) => `<span class="chip gold" style="margin:0 6px 6px 0">★ ${esc(n)} legend</span>`).join("")}${here && !(cr.legends || []).includes(here) ? `<div class="small muted">${inRow} of 5 straight seasons and ${goalsAtClub(p, here)} of 100 goals at ${esc(here)}. Reach either one and you become a club legend: the fans forgive more, the manager trusts you, and you get a loyalty raise.</div>` : here ? `<div class="small muted">The ${esc(here)} fans adore you. They forgive your mistakes more easily, and the manager will always trust you.</div>` : ""}</div>` : "";
   return `${cbBanner}${legendHTML}${cr.fa && !cr.retired ? `<div class="moment" style="margin-bottom:16px"><b>You're a free agent.</b> Your last club sacked you. Offers from smaller clubs arrive in your inbox, and free agents can sign at any time. Keep your nose clean.</div>` : ""}
   <div class="grid g3" style="margin-bottom:16px">
     <div class="panel stack"><h4>Public image</h4><div class="meter"><div class="bar"><i style="width:${rp}%;background:${rp < 30 ? "var(--loss)" : rp < 50 ? "var(--warn)" : "var(--win)"}"></i></div><b class="small">${repWord(rp)}</b></div><p class="small muted" style="margin:0">Charity, good form and humble interviews help. Scandals, fights and explosive press conferences hurt. Sponsors and big clubs care about it.</p></div>
@@ -1392,7 +1392,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610141900";
+const BUILD = "202610141930";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;
