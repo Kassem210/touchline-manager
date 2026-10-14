@@ -415,6 +415,7 @@ function trustWeekly() {
   const f = p.form.length ? avg(p.form.slice(-4)) : 6.5;
   const tg = (f - 6.7) * 0.8;
   C.trust = r1(clamp(C.trust + (tg > 0 && traitOf() && traitOf().leader ? tg * 1.5 : tg) + (50 - C.trust) * 0.01, 0, 100));
+  if (legendHere() && C.trust < 55) C.trust = 55;
   if (C.captain != null && C.captain !== p.club) C.captain = null;
 }
 const moodWord = (v) => (v >= 75 ? "Happy" : v >= 55 ? "Content" : v >= 35 ? "Upset" : "Angry");

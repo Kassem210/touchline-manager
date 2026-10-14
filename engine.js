@@ -874,6 +874,7 @@ function endSeason() {
     p.st = newStats(); p.yc = 0; p.sus = 0;
     const ag = age(p) + 1;
     if (p.id === G.userPlayer) {
+      if (G.mode === "career" && G.career) checkLegend(p);
       if (G.mode === "career" && G.career && G.career.comeback && !G.career.comebackDone && !G.career.retired && G.season >= G.career.comeback.until) { endComeback(p); continue; }
       if (p.ce != null && p.ce <= G.season && p.club >= 0) { p.ce = G.season + 2; p.wage = Math.max(p.wage, wageFor(p, club(p.club))); inbox({ t: "Contract extended", b: `${club(p.club).name} have extended your contract by two years at ${money(p.wage)}/wk.`, type: "career" }); }
       continue;
