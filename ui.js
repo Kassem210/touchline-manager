@@ -601,7 +601,8 @@ function careerStatus(p, cr) {
   const rp = cr.rep == null ? 50 : cr.rep, dc = cr.disc || 0;
   const goals = cr.goals && cr.goals.s === G.season && !cr.retired ? cr.goals.list.map((gl) => { const [v, t] = goalProgress(gl); const pct = clamp(Math.round((v / t) * 100), 0, 100); return `<div><div class="row" style="justify-content:space-between"><span class="small">${v >= t ? "✅ " : ""}${esc(gl.n)}</span><b class="small">${v} / ${t}</b></div><div class="bar"><i style="width:${pct}%;background:${v >= t ? "var(--win)" : "var(--accent)"}"></i></div></div>`; }).join("") : "";
   const press = (cr.press || []).slice(0, 5).map((h) => `<div class="headline"><span class="small muted">${fmtDate(h.d, { season: h.s })} ${h.s}</span><b>${esc(h.t)}</b></div>`).join("");
-  return `${cr.fa && !cr.retired ? `<div class="moment" style="margin-bottom:16px"><b>You're a free agent.</b> Your last club sacked you. Offers from smaller clubs arrive in your inbox, and free agents can sign at any time. Keep your nose clean.</div>` : ""}
+  const cbBanner = cr.comeback && !cr.comebackDone && !cr.retired ? `<div class="moment" style="margin-bottom:16px"><b>The comeback.</b> You came out of retirement to help ${esc(club(cr.comeback.cid).name)}. You retire for good at the end of ${cr.comeback.until}/${(cr.comeback.until + 1) % 100}.</div>` : "";
+  return `${cbBanner}${cr.fa && !cr.retired ? `<div class="moment" style="margin-bottom:16px"><b>You're a free agent.</b> Your last club sacked you. Offers from smaller clubs arrive in your inbox, and free agents can sign at any time. Keep your nose clean.</div>` : ""}
   <div class="grid g3" style="margin-bottom:16px">
     <div class="panel stack"><h4>Public image</h4><div class="meter"><div class="bar"><i style="width:${rp}%;background:${rp < 30 ? "var(--loss)" : rp < 50 ? "var(--warn)" : "var(--win)"}"></i></div><b class="small">${repWord(rp)}</b></div><p class="small muted" style="margin:0">Charity, good form and humble interviews help. Scandals, fights and explosive press conferences hurt. Sponsors and big clubs care about it.</p></div>
     <div class="panel stack"><h4>Discipline</h4><div class="meter"><div class="bar"><i style="width:${dc}%;background:${dc >= 60 ? "var(--loss)" : dc >= 40 ? "var(--warn)" : "var(--win)"}"></i></div><b class="small">${discWord(dc)}</b></div><p class="small muted" style="margin:0">Partying, fights, rows with the manager and scandals add up. At 40 you get a warning, at 60 a fine, and at 80 the club terminates your contract.</p></div>
@@ -614,7 +615,10 @@ function afterCareerPanel() {
   cr.jobOffers = cr.jobOffers && cr.jobOffers.length ? cr.jobOffers : managerJobsForLegend();
   const buy = G.clubs.map((c) => ({ c, price: clubPrice(c) })).filter((x) => x.price <= L.cash).sort((a, b) => b.c.rep - a.c.rep).slice(0, 5);
   const cheapest = G.clubs.map((c) => clubPrice(c)).sort((a, b) => a - b)[0];
-  return `<div class="panel stack" style="margin-bottom:16px"><h3>Life after football</h3>
+  const cb = comebackStatus();
+  const cbHTML = cb ? `<div class="moment"><div class="row">${crest(cb.c, 30)}<div><b>One last comeback</b><div class="small muted">${cb.wait > 0 ? `In ${cb.wait} season${cb.wait > 1 ? "s" : ""}, your boyhood club ${esc(cb.c.name)} may need you back for two final seasons.` : `${esc(cb.c.name)}, your boyhood club, want you back for two final seasons to help them. After that you retire for good.`}</div></div></div>
+    <div class="row" style="margin-top:8px">${cb.wait > 0 ? `<button class="btn sm" data-a="comebackSkip">Skip ${cb.wait} season${cb.wait > 1 ? "s" : ""}</button>` : `<button class="btn sm pri" data-a="comeback">Come back to ${esc(cb.c.short || cb.c.name)}</button>`}</div></div>` : "";
+  return `<div class="panel stack" style="margin-bottom:16px"><h3>Life after football</h3>${cbHTML}
   ${cr.pundit ? `<div class="small"><span class="chip gold">TV pundit</span> You earn ${money(cr.pundit.wk)} a week in the studio. Press Continue to keep living your life.</div>` : `<div class="facrow"><div><b>Become a TV pundit</b><div class="small muted">A weekly studio wage based on your fame, and your life carries on.</div></div><button class="btn sm pri" data-a="goPundit">Take the job</button></div>`}
   <div><b>Become a manager</b><div class="small muted" style="margin-bottom:6px">These clubs want a big name in the dugout. The save switches to manager mode.</div>${cr.jobOffers.map((id) => { const c = club(id); return `<div class="facrow"><div class="row">${crest(c, 26)}<div><b>${esc(c.name)}</b><div class="small muted">${esc(leagueOf(c).name)} · ${stars(c.rep)}</div></div></div><button class="btn sm" data-a="goManager" data-v="${id}">Accept</button></div>`; }).join("")}</div>
   <div><b>Buy a club</b><div class="small muted" style="margin-bottom:6px">You'd be the owner and the manager, and nobody can sack you. You have ${money(L.cash)}.</div>${buy.length ? buy.map(({ c, price }) => `<div class="facrow"><div class="row">${crest(c, 26)}<div><b>${esc(c.name)}</b><div class="small muted">${esc(leagueOf(c).name)} · ${stars(c.rep)}</div></div></div><button class="btn sm" data-a="buyClub" data-v="${c.id}">Buy · ${money(price)}</button></div>`).join("") : `<div class="small muted">The cheapest club costs about ${money(cheapest)}.</div>`}</div></div>`;
@@ -1075,6 +1079,12 @@ A.legacySkip = (el) => {
   setTimeout(() => { try { for (let k = 0; k < n; k++) fastSeason(); } catch (e) { console.error(e); } busy(false); render(); autosave(); toast(`${kid.name} is now 16.`); }, 40);
 };
 A.legacyStart = (el) => { startLegacy(+el.dataset.i); faceCache.clear(); UI.page = "career"; render(); autosave(); };
+A.comeback = () => { const r = startComeback(); toast(r); faceCache.clear(); render(); autosave(); };
+A.comebackSkip = () => {
+  const n = comebackStatus() ? comebackStatus().wait : 0; if (!n) return;
+  busy(true, `Skipping ${n} season${n > 1 ? "s" : ""}…`);
+  setTimeout(() => { try { for (let k = 0; k < n; k++) fastSeason(); } catch (e) { console.error(e); } busy(false); render(); autosave(); }, 40);
+};
 A.goPundit = () => { becomePundit(); render(); autosave(); };
 A.goManager = (el) => { openModal("confirm", { title: "Become a manager?", text: "Your save switches to manager mode at this club. Your playing record is kept.", yes: "Take the job", then: () => { switchToManager(+el.dataset.v, false, 0); UI.page = "home"; faceCache.clear(); render(); autosave(); } }); };
 A.buyClub = (el) => { const c = club(+el.dataset.v), price = clubPrice(c); openModal("confirm", { title: `Buy ${c.name}?`, text: `It costs ${money(price)}. You'll be the owner and the manager. Your save switches to manager mode.`, yes: "Buy the club", then: () => { switchToManager(c.id, true, price); UI.page = "home"; faceCache.clear(); render(); autosave(); } }); };
@@ -1380,7 +1390,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610141745";
+const BUILD = "202610141820";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;

@@ -194,7 +194,7 @@ function newWorld(opts) {
     G.userClub = customId != null ? customId : opts.clubId;
     const uc = club(G.userClub); uc.form = "4-3-3"; uc.auto = true; autoLineup(uc, true);
   } else {
-    G.career = { tf: 2, trophies: [], awards: [], started: G.season, caps: 0, req: null, offers: [], life: newLife(), called: false, trait: opts.player.trait || null, eq: !!opts.player.eq, train: { int: 1, extra: [] } };
+    G.career = { tf: 2, trophies: [], awards: [], started: G.season, caps: 0, req: null, offers: [], life: newLife(), called: false, trait: opts.player.trait || null, eq: !!opts.player.eq, boyhood: opts.clubId, train: { int: 1, extra: [] } };
     const cp = opts.player, c = club(opts.clubId);
     const p = genPlayer({ pos: cp.pos, ovr: cp.ovr, ag: cp.age, nat: cp.nat, cid: c.id, pot: cp.pot, names: [cp.fn, cp.ln] });
     if (cp.face) p.face = cp.face; if (cp.ph) p.ph = cp.ph; p.foot = cp.foot || p.foot;
@@ -287,7 +287,7 @@ function initSeason(first) {
     if (info.region === "EU") setupEuro(cid, teams); else setupGroups(cid, teams);
   }
   if (G.nations) { scheduleInternational(); scheduleSummer(); }
-  if (G.mode === "career" && G.career) careerSeasonStart();
+  if (G.mode === "career" && G.career) { careerSeasonStart(); comebackCall(); }
   G.day = 0;
   G.clubs.forEach((c) => (c.seasonRes = { w: 0, d: 0, l: 0 }));
 }
@@ -874,6 +874,7 @@ function endSeason() {
     p.st = newStats(); p.yc = 0; p.sus = 0;
     const ag = age(p) + 1;
     if (p.id === G.userPlayer) {
+      if (G.mode === "career" && G.career && G.career.comeback && !G.career.comebackDone && !G.career.retired && G.season >= G.career.comeback.until) { endComeback(p); continue; }
       if (p.ce != null && p.ce <= G.season && p.club >= 0) { p.ce = G.season + 2; p.wage = Math.max(p.wage, wageFor(p, club(p.club))); inbox({ t: "Contract extended", b: `${club(p.club).name} have extended your contract by two years at ${money(p.wage)}/wk.`, type: "career" }); }
       continue;
     }

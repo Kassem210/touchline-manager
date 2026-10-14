@@ -435,8 +435,10 @@ function partnerLeaves(reason) {
 function retireUser() {
   const p = pl(G.userPlayer);
   G.career.retired = `${G.season}/${(G.season + 1) % 100}`;
+  G.career.retiredS = G.season;
   G.career.called = false;
-  if (p) testimonial(p);
+  if (G.career.comeback) { G.career.comebackDone = true; if (G.career.punditPaused) { G.career.pundit = G.career.punditPaused; G.career.punditPaused = null; } }
+  else if (p) testimonial(p);
   if (p && p.club >= 0) { G.career.lastClub = p.club; releaseToFA(p); }
   if (p) p.ret = 1;
 }
@@ -463,7 +465,7 @@ function startLegacy(ki) {
   const legacy = (old.legacy || []).concat([{ n: dad ? fullName(dad) : "Your father", s0: old.started, s1: old.retired, apps, goals, caps: dad ? dad.caps || 0 : 0, peak: dad ? Math.max(dad.o, ...dad.hist.map((h) => h.o)) : 0, trophies: old.trophies.length, awards: old.awards.length }]);
   if (dad) delete G.players[dad.id];
   G.userPlayer = p.id; G.userClub = c.id;
-  G.career = { tf: 2, trophies: [], awards: [], started: G.season, legacy, life: newLife(Math.round(old.life.cash * 0.5) + 25000), called: false, trait: null, train: { int: 1, extra: [] }, agent: 5, rep: 50, disc: 0 };
+  G.career = { tf: 2, trophies: [], awards: [], started: G.season, legacy, life: newLife(Math.round(old.life.cash * 0.5) + 25000), called: false, trait: null, train: { int: 1, extra: [] }, agent: 5, rep: 50, disc: 0, boyhood: c.id };
   careerSeasonStart();
   inbox({ t: `${fullName(p)} signs for ${c.name}`, b: `The next generation begins. ${kid.name} inherits ${money(Math.round(old.life.cash * 0.5))} from the family and his father's name on his back.`, type: "career" });
 }

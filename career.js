@@ -118,6 +118,68 @@ function careerSeasonReview() {
   inbox({ t: `Season goals: ${done.length} of ${C.goals.list.length} achieved`, b: `${done.length ? `Achieved: ${done.join(", ")}. Bonus: ${money(bonus)}. ` : ""}${missed.length ? `Missed: ${missed.join(", ")}. Your family and the fans expected more.` : "A brilliant season."}`, type: "career" });
 }
 
+// ---------- one last comeback ----------
+// Three seasons after retiring, your boyhood club can call you back for two final seasons.
+function retiredSeason() { const C = G.career; return C.retiredS != null ? C.retiredS : parseInt(C.retired, 10) || G.season; }
+function boyhoodClub() {
+  const C = G.career, p = pl(G.userPlayer);
+  if (C.boyhood != null && club(C.boyhood)) return club(C.boyhood);
+  const first = p && p.hist.find((h) => !/\(loan\)$/.test(h.cn) && h.cn !== "Free agent");
+  const byName = first && G.clubs.find((c) => c.name === first.cn);
+  return byName || (C.lastClub != null ? club(C.lastClub) : null);
+}
+function comebackStatus() {
+  const C = G.career, p = pl(G.userPlayer);
+  if (!C || !C.retired || !p || C.comebackDone || G.mode !== "career") return null;
+  const c = boyhoodClub(); if (!c) return null;
+  if (age(p) > 43) return null;
+  const wait = retiredSeason() + 3 - G.season;
+  return { c, wait: Math.max(0, wait) };
+}
+function comebackCall() {
+  const st = comebackStatus();
+  if (!st || st.wait > 0 || G.career.comebackCalled) return;
+  G.career.comebackCalled = true;
+  inbox({ t: `${st.c.name} need you`, b: `Your boyhood club ${st.c.name} are struggling and want you back for two final seasons to help them. Open your Career page to answer.`, type: "career" });
+}
+function startComeback() {
+  const st = comebackStatus();
+  if (!st) return "There's no comeback on the table.";
+  if (st.wait > 0) return `Wait ${st.wait} more season${st.wait > 1 ? "s" : ""}.`;
+  const C = G.career, p = pl(G.userPlayer), c = st.c;
+  const peak = Math.max(p.o, ...p.hist.map((h) => h.o));
+  const away = G.season - retiredSeason();
+  // A pre-season of hard work gets some of the old sharpness back.
+  const target = clamp(Math.round(peak - 8 - away * 1.5), 45, 85);
+  for (let k = 0; k < 60 && p.o < target; k++) { const w = POS_W[p.pos]; for (let i = 0; i < 7; i++) if (w[i] > 0) p.a[i] = r1(clamp(p.a[i] + 0.6, 10, 99)); calcOvr(p); }
+  p.ret = 0; p.inj = 0; p.form = []; p.listed = 0;
+  const wage = Math.max(500, Math.round(wageFor(p, c) / 100) * 100);
+  const second = G.day > (G.seasonEnd || SEASON_END) / 2;
+  doTransfer(p, c, 0, second ? 2 : 1, wage);
+  p.ce = G.season + (second ? 2 : 1); p.wage = wage;
+  C.comeback = { cid: c.id, until: p.ce, start: G.season };
+  if (C.pundit) { C.punditPaused = C.pundit; C.pundit = null; }
+  C.retired = null; C.fa = false; C.lastClub = c.id; C.captain = null; C.goals = null;
+  G.userClub = c.id;
+  careerSeasonStart();
+  crep(6);
+  headline(`${fullName(p)} comes out of retirement to save boyhood club ${c.name}`);
+  inbox({ t: `Back home at ${c.name}`, b: `You've come out of retirement for two final seasons at ${c.name} on ${money(wage)}/wk. The fans are going wild. After this, you hang up your boots for good.`, type: "career" });
+  return `You're back! Two final seasons at ${c.name}.`;
+}
+function endComeback(p) {
+  const C = G.career, c = club(C.comeback.cid);
+  C.comebackDone = true;
+  const apps = p.hist.filter((h) => h.s >= C.comeback.start && h.cn === c.name).reduce((s, h) => s + h.ap, 0);
+  if (p.club >= 0) releaseToFA(p);
+  p.ret = 1;
+  C.retired = `${G.season}/${(G.season + 1) % 100}`; C.retiredS = G.season; C.called = false;
+  if (C.punditPaused) { C.pundit = C.punditPaused; C.punditPaused = null; }
+  crep(4); C.life.happy = clamp(C.life.happy + 10, 0, 100);
+  headline(`${fullName(p)} retires for good after his return to ${c.name}`);
+  inbox({ t: "Boots hung up for good", b: `Your comeback is over after ${apps} more games for ${c.name}. The club gave you a guard of honour on your last day. This time the retirement is final.`, type: "career" });
+}
+
 // ---------- retirement & life after football ----------
 function testimonial(p) {
   const by = {}; p.hist.forEach((h) => { by[h.cn] = (by[h.cn] || 0) + h.ap; });
