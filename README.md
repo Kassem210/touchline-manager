@@ -17,6 +17,7 @@ No build step and no server: it's plain HTML and JavaScript. Saves are stored in
 | `online.js` | Friends and chat over Firebase (the Phone page) |
 | `progress.js` | Playstyle traits, weekly training, potential that rises and falls, partner personalities |
 | `ads.js` | Pitch-side advertising boards in the live match tracker (edit to add your own sponsors) |
+| `career.js` | Discipline and getting sacked, reputation and press, season goals, veteran years, life after football |
 | `events.js` | Random events with choices, children's schools and football training |
 | `engine.js` | World generation, calendar, competitions, transfers, seasons |
 | `match.js` | Match engine (quick sim and live) |

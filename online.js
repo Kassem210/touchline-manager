@@ -63,6 +63,8 @@ const Online = {
       const p = pl(G.userPlayer);
       if (p) Object.assign(base, { pos: p.pos, ovr: p.o, age: age(p), nat: p.nat, face: p.face, apps: p.st.ap + p.hist.reduce((s, h) => s + h.ap, 0), goals: p.st.g + p.hist.reduce((s, h) => s + h.g, 0), caps: p.caps || 0, trophies: G.career.trophies.length, retired: !!G.career.retired });
     } else Object.assign(base, { trophies: G.mgr.trophies.length, conf: Math.round(G.mgr.conf) });
+    try { base.team = teamSnapshot(); } catch (e) { /* ignore */ }
+    if (G.mode === "career" && G.career) base.rep = Math.round(G.career.rep == null ? 50 : G.career.rep);
     return base;
   },
   async ensureProfile() {
@@ -103,7 +105,7 @@ const Online = {
       const pr = this.pair(code);
       const q = query(collection(this.db, "chats", pr, "msgs"), orderBy("at"), limitToLast(60));
       this.unsub.push(onSnapshot(q, (s) => {
-        this.chats[pr] = s.docs.map((d) => { const x = d.data({ serverTimestamps: "estimate" }); return { id: d.id, from: x.from, text: x.text, at: x.at && x.at.toMillis ? x.at.toMillis() : Date.now() }; });
+        this.chats[pr] = s.docs.map((d) => { const x = d.data({ serverTimestamps: "estimate" }); return { id: d.id, from: x.from, text: x.text, h2h: x.h2h || null, at: x.at && x.at.toMillis ? x.at.toMillis() : Date.now() }; });
         if (this.open === code) this.markRead(code);
         refreshOnlineUI();
       }, (e) => { this.err = "Messages couldn't load. Check that the Firestore security rules were published."; refreshOnlineUI(); }));
@@ -127,6 +129,29 @@ const Online = {
     const { collection, addDoc, serverTimestamp } = this.fs;
     await addDoc(collection(this.db, "chats", this.pair(code), "msgs"), { from: G.online.code, text, at: serverTimestamp() });
   },
+  async challenge(code) {
+    const fp = this.profiles[code];
+    if (!fp || !fp.team) return "Your friend needs to open the game once before you can challenge them.";
+    const mine = teamSnapshot(), them = fp.team;
+    const lam = (x, y) => 1.3 * Math.exp(0.024 * (x.att - y.def) + 0.01 * (x.mid - y.mid));
+    const pois = (l) => { let k = 0, p = 1; const L = Math.exp(-l); do { k++; p *= rnd(); } while (p > L); return k - 1; };
+    const ga = pois(lam(mine, them) * 1.05), gb = pois(lam(them, mine));
+    let mineScorers = "";
+    if (G.mode === "career") { const me = pl(G.userPlayer); if (me && me.club >= 0) { let g = 0; for (let i = 0; i < ga; i++) if (rnd() < (POS_GROUP[me.pos] === "ATT" ? 0.35 : 0.15)) g++; if (g) mineScorers = ` ${me.ln} scored ${g}.`; } }
+    const text = `⚔️ Friendly: ${mine.name} ${ga}–${gb} ${them.name}.${mineScorers}`;
+    const { collection, addDoc, serverTimestamp } = this.fs;
+    await addDoc(collection(this.db, "chats", this.pair(code), "msgs"), { from: G.online.code, text, at: serverTimestamp(), h2h: { a: G.online.code, b: code, ga, gb } });
+    return text;
+  },
+  h2h(code) {
+    const r = { w: 0, d: 0, l: 0 };
+    for (const m of this.chats[this.pair(code)] || []) {
+      if (!m.h2h) continue;
+      const mineA = m.h2h.a === G.online.code, my = mineA ? m.h2h.ga : m.h2h.gb, th = mineA ? m.h2h.gb : m.h2h.ga;
+      if (my > th) r.w++; else if (my < th) r.l++; else r.d++;
+    }
+    return r;
+  },
   markRead(code) { const m = this.chats[this.pair(code)] || []; if (m.length) { G.online.read[code] = m[m.length - 1].at; } },
   unread(code) {
     if (!G || !G.online) return 0;
@@ -136,6 +161,13 @@ const Online = {
   totalUnread() { return G && G.online ? G.online.friends.reduce((s, c) => s + this.unread(c), 0) : 0; },
 };
 
+function teamSnapshot() {
+  const c = club(G.userClub);
+  const lu = G.mode === "manager" && !c.auto ? validateUserLineup(c) : { xi: (c.xi && c.xi.length === 11 ? c.xi : autoLineup(c).xi) };
+  const form = FORMATIONS[c.form];
+  const s = sideStrength({ on: lu.xi.map((id, i) => (id != null && pl(id) ? { pid: id, pos: form[i] } : null)).filter(Boolean), form: 1 });
+  return { name: c.name, short: c.short, c1: c.c1, c2: c.c2, att: Math.round(s.att * 10) / 10, mid: Math.round(s.mid * 10) / 10, def: Math.round(s.def * 10) / 10 };
+}
 let onlineRenderT = null;
 function refreshOnlineUI() {
   clearTimeout(onlineRenderT);

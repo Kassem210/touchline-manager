@@ -136,13 +136,14 @@ function render() {
     ? [["home", "Home"], ["inbox", "Inbox"], ["squad", "Squad"], ["tactics", "Tactics"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["transfers", "Transfers"], ["club", "Club"], ["phone", "Phone"], ["sep"], ["saves", "Save & menu"]]
     : [["home", "Home"], ["inbox", "Inbox"], ["career", "My career"], ["life", "Life"], ["squad", "Squad"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["world", "Players"], ["phone", "Phone"], ["sep"], ["saves", "Save & menu"]];
   const today = userFxOn(G.day);
-  const goLabel = G.career && G.career.retired ? "Retired" : today && !today.p ? "Match day" : "Continue";
+  const retiredLock = G.mode === "career" && G.career && G.career.retired && !G.career.pundit;
+  const goLabel = retiredLock ? "Retired" : today && !today.p ? "Match day" : "Continue";
   const p = G.mode === "career" ? pl(G.userPlayer) : null;
   app.innerHTML = `<div class="frame">
   <header class="topbar">
     <div class="club">${p ? faceHTML(p, 38) : crest(c, 34)}<div style="min-width:0"><div class="nm">${esc(p ? fullName(p) : c.name)}</div><div class="small muted">${esc(p ? c.name + " · " + p.pos : leagueOf(c).name)}</div></div></div>
     <div class="date"><b>${fmtDate(G.day, { wd: true, y: true })}</b><span class="small muted">${G.season}/${String((G.season + 1) % 100).padStart(2, "0")} season${UI.lastSaved ? " · saved" : ""}</span></div>
-    <button class="btn pri go" data-a="continue" ${G.career && G.career.retired ? "disabled" : ""}>${goLabel}</button>
+    <button class="btn pri go" data-a="continue" ${retiredLock ? "disabled" : ""}>${goLabel}</button>
   </header>
   <nav class="rail" aria-label="Sections">${nav.map(([k, l]) => k === "sep" ? '<div class="sep"></div>' : `<button class="${UI.page === k ? "on" : ""}" data-a="nav" data-p="${k}">${icon(k === "world" ? "world" : k)}<span>${l}</span>${k === "inbox" && unread ? `<span class="badge-n">${unread}</span>` : ""}${k === "phone" && Online.totalUnread() ? `<span class="badge-n">${Online.totalUnread()}</span>` : ""}</button>`).join("")}</nav>
   <main id="main">${(PAGES[UI.page] || PAGES.home)()}</main></div>`;
@@ -537,7 +538,8 @@ PAGES.club = () => {
   const c = club(G.userClub);
   const wages = squad(c.id).reduce((s, p) => s + p.wage, 0);
   const sv = squad(c.id).reduce((s, p) => s + p.val, 0);
-  return `<div class="page-h"><div class="row">${crest(c, 56)}<div><h4>${esc(leagueOf(c).name)} · ${esc(c.country)}</h4><h1>${esc(c.name)}</h1></div></div><button class="btn" data-a="editClub">Edit club</button></div>
+  return `<div class="page-h"><div class="row">${crest(c, 56)}<div><h4>${esc(leagueOf(c).name)} · ${esc(c.country)}</h4><h1>${esc(c.name)}</h1></div></div><div class="row">${G.mgr.owner ? `<span class="chip gold">Owner</span>` : ""}<button class="btn" data-a="editClub">Edit club</button></div></div>
+  ${G.mgr.owner ? `<div class="panel row" style="margin-bottom:16px;justify-content:space-between"><div><b>Your personal fortune: ${money(G.mgr.wealth)}</b><div class="small muted">Invest it into the club. It goes straight into the balance and the transfer budget.</div></div><div class="row">${[1e6, 5e6, 20e6].map((v) => `<button class="btn sm" data-a="ownerInvest" data-v="${v}" ${G.mgr.wealth >= v ? "" : "disabled"}>Invest ${money(v)}</button>`).join("")}</div></div>` : ""}
   <div class="grid g21"><div class="stack" style="gap:16px">
     <div class="panel"><h3>Finances</h3><div class="kpis"><div class="kpi"><b>${money(c.bal)}</b><span>Balance</span></div><div class="kpi"><b>${money(c.budget)}</b><span>Transfer budget</span></div><div class="kpi"><b>${money(c.income)}</b><span>Income / wk</span></div><div class="kpi"><b>${money(wages)}</b><span>Wages / wk</span></div><div class="kpi"><b>${money(c.wcap)}</b><span>Wage cap</span></div><div class="kpi"><b>${money(sv)}</b><span>Squad value</span></div></div>
     <p class="small muted">Income covers TV, sponsorship and commercial deals. Gate receipts, prize money and transfer fees are added on top. The board resets your transfer budget each summer from the club's balance.</p></div>
@@ -557,7 +559,8 @@ PAGES.career = () => {
   const hist = p.hist.slice().reverse();
   return `<div class="page-h"><div class="row">${faceHTML(p, 76)}<div><h4>${posTag(p.pos)} · age ${age(p)} · ${esc(NATIONS[p.nat] ? NATIONS[p.nat][0] : p.nat)}</h4><h1>${esc(fullName(p))}</h1><div class="row small">${crest(c, 20)} ${esc(c.name)}${cr.retired ? " · retired" : ` · ${money(p.wage)}/wk until ${p.ce + 1}`} · ${p.caps || 0} caps, ${p.ig || 0} international goals</div></div></div>
   <div class="row"><button class="btn" data-a="player" data-id="${p.id}">Full profile</button><button class="btn" data-a="editPlayer" data-id="${p.id}">Edit look</button></div></div>
-  ${cr.retired ? legacyPanel() : ""}
+  ${careerStatus(p, cr)}
+  ${cr.retired ? afterCareerPanel() + legacyPanel() : ""}
   ${cr.legacy && cr.legacy.length ? `<div class="panel" style="margin-bottom:16px"><h3>Family legacy</h3>${cr.legacy.map((g) => `<div class="trophy"><span class="chip gold">${g.s0}–${esc(String(g.s1).slice(0, 4))}</span><span><b>${esc(g.n)}</b> <span class="small muted">${g.apps} apps · ${g.goals} goals · ${g.caps} caps · peak ${g.peak} · ${g.trophies} trophies</span></span></div>`).join("")}</div>` : ""}
   <div class="grid g21"><div class="stack" style="gap:16px">
     <div class="panel"><div class="panel-h"><h3>Attributes</h3><div class="row">${ovrTag(p.o)}<span class="small muted">Potential ${p.pot} ${G.mode === "career" && p.id === G.userPlayer ? `<b title="${esc(potTrend().text)}">${potTrend().arrow}</b>` : ""}</span></div></div><div class="stack" style="gap:6px">${attrs.map((i) => attrRow(p, i)).join("")}</div></div>
@@ -593,6 +596,28 @@ function kidRow(k, i) {
   ${k.g === "boy" && a >= 4 && a <= 15 ? `<div class="row" style="margin-top:6px"><label class="small muted" for="train${i}" style="width:54px">Football</label><select id="train${i}" data-c="kidTrain" data-i="${i}" style="flex:1;min-width:200px">${TRAINING.map((t) => `<option value="${t.id}" ${(k.train || 0) === t.id ? "selected" : ""}>${esc(t.n)}${t.wk ? ` · ${money(t.wk)}/wk` : ""}</option>`).join("")}</select></div>` : ""}</div>`;
 }
 function brandBadge(id) { const b = BRAND_BY[id]; return `<span class="brand" style="background:${b.bg};color:${b.fg}">${esc(b.n)}</span>`; }
+function careerStatus(p, cr) {
+  const rp = cr.rep == null ? 50 : cr.rep, dc = cr.disc || 0;
+  const goals = cr.goals && cr.goals.s === G.season && !cr.retired ? cr.goals.list.map((gl) => { const [v, t] = goalProgress(gl); const pct = clamp(Math.round((v / t) * 100), 0, 100); return `<div><div class="row" style="justify-content:space-between"><span class="small">${v >= t ? "✅ " : ""}${esc(gl.n)}</span><b class="small">${v} / ${t}</b></div><div class="bar"><i style="width:${pct}%;background:${v >= t ? "var(--win)" : "var(--accent)"}"></i></div></div>`; }).join("") : "";
+  const press = (cr.press || []).slice(0, 5).map((h) => `<div class="headline"><span class="small muted">${fmtDate(h.d, { season: h.s })} ${h.s}</span><b>${esc(h.t)}</b></div>`).join("");
+  return `${cr.fa && !cr.retired ? `<div class="moment" style="margin-bottom:16px"><b>You're a free agent.</b> Your last club sacked you. Offers from smaller clubs arrive in your inbox, and free agents can sign at any time. Keep your nose clean.</div>` : ""}
+  <div class="grid g3" style="margin-bottom:16px">
+    <div class="panel stack"><h4>Public image</h4><div class="meter"><div class="bar"><i style="width:${rp}%;background:${rp < 30 ? "var(--loss)" : rp < 50 ? "var(--warn)" : "var(--win)"}"></i></div><b class="small">${repWord(rp)}</b></div><p class="small muted" style="margin:0">Charity, good form and humble interviews help. Scandals, fights and explosive press conferences hurt. Sponsors and big clubs care about it.</p></div>
+    <div class="panel stack"><h4>Discipline</h4><div class="meter"><div class="bar"><i style="width:${dc}%;background:${dc >= 60 ? "var(--loss)" : dc >= 40 ? "var(--warn)" : "var(--win)"}"></i></div><b class="small">${discWord(dc)}</b></div><p class="small muted" style="margin:0">Partying, fights, rows with the manager and scandals add up. At 40 you get a warning, at 60 a fine, and at 80 the club terminates your contract.</p></div>
+    <div class="panel stack"><h4>Season goals</h4>${goals || `<div class="small muted">Goals are set at the start of each season.</div>`}</div>
+  </div>
+  ${press ? `<div class="panel" style="margin-bottom:16px"><h3>Headlines</h3><div class="stack" style="gap:6px">${press}</div></div>` : ""}`;
+}
+function afterCareerPanel() {
+  const cr = G.career, L = cr.life;
+  cr.jobOffers = cr.jobOffers && cr.jobOffers.length ? cr.jobOffers : managerJobsForLegend();
+  const buy = G.clubs.map((c) => ({ c, price: clubPrice(c) })).filter((x) => x.price <= L.cash).sort((a, b) => b.c.rep - a.c.rep).slice(0, 5);
+  const cheapest = G.clubs.map((c) => clubPrice(c)).sort((a, b) => a - b)[0];
+  return `<div class="panel stack" style="margin-bottom:16px"><h3>Life after football</h3>
+  ${cr.pundit ? `<div class="small"><span class="chip gold">TV pundit</span> You earn ${money(cr.pundit.wk)} a week in the studio. Press Continue to keep living your life.</div>` : `<div class="facrow"><div><b>Become a TV pundit</b><div class="small muted">A weekly studio wage based on your fame, and your life carries on.</div></div><button class="btn sm pri" data-a="goPundit">Take the job</button></div>`}
+  <div><b>Become a manager</b><div class="small muted" style="margin-bottom:6px">These clubs want a big name in the dugout. The save switches to manager mode.</div>${cr.jobOffers.map((id) => { const c = club(id); return `<div class="facrow"><div class="row">${crest(c, 26)}<div><b>${esc(c.name)}</b><div class="small muted">${esc(leagueOf(c).name)} · ${stars(c.rep)}</div></div></div><button class="btn sm" data-a="goManager" data-v="${id}">Accept</button></div>`; }).join("")}</div>
+  <div><b>Buy a club</b><div class="small muted" style="margin-bottom:6px">You'd be the owner and the manager, and nobody can sack you. You have ${money(L.cash)}.</div>${buy.length ? buy.map(({ c, price }) => `<div class="facrow"><div class="row">${crest(c, 26)}<div><b>${esc(c.name)}</b><div class="small muted">${esc(leagueOf(c).name)} · ${stars(c.rep)}</div></div></div><button class="btn sm" data-a="buyClub" data-v="${c.id}">Buy · ${money(price)}</button></div>`).join("") : `<div class="small muted">The cheapest club costs about ${money(cheapest)}.</div>`}</div></div>`;
+}
 function trainingPanel(p, cr, attrs) {
   const plan = trainPlan(), t = traitOf(), tr = potTrend();
   const sess = SESSIONS.filter((s) => (p.pos === "GK" ? s.id !== "finish" : s.id !== "keep"));
@@ -656,12 +681,14 @@ PAGES.phone = () => {
   if (Online.open && fr.includes(Online.open)) {
     const code = Online.open, p = Online.profiles[code] || { name: code }, msgs = Online.chats[Online.pair(code)] || [];
     Online.markRead(code);
-    chat = `<div class="panel chat"><div class="panel-h"><div class="row"><button class="btn sm" data-a="phoneBack">‹ Back</button><b>${esc(p.name)}</b><span class="small muted">${esc(p.club || "")}</span></div><button class="btn sm danger" data-a="phoneRemove" data-v="${esc(code)}">Remove friend</button></div>
+    chat = `<div class="panel chat"><div class="panel-h"><div class="row"><button class="btn sm" data-a="phoneBack">‹ Back</button><b>${esc(p.name)}</b><span class="small muted">${esc(p.club || "")}</span></div><div class="row"><span class="small muted">Head to head: <b>${(() => { const r = Online.h2h(code); return `W${r.w} D${r.d} L${r.l}`; })()}</b></span><button class="btn sm pri" data-a="challenge" data-v="${esc(code)}">⚔️ Challenge to a friendly</button><button class="btn sm danger" data-a="phoneRemove" data-v="${esc(code)}">Remove</button></div></div>
     <div class="chat-scroll" id="chatScroll">${msgs.length ? msgs.map((m) => `<div class="bub ${m.from === G.online.code ? "me" : ""}"><div>${esc(m.text)}</div><span>${new Date(m.at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span></div>`).join("") : `<div class="empty">No messages yet. Say hi!</div>`}</div>
     <div class="row" style="margin-top:10px"><input type="text" id="chatInput" maxlength="500" placeholder="Message ${esc(p.name)}" style="flex:1;min-width:0" aria-label="Message"><button class="btn pri" data-a="phoneSend">Send</button></div>
     <div class="row" style="margin-top:8px"><button class="btn sm" data-a="phoneQuick" data-v="result">Share my last result</button><button class="btn sm" data-a="phoneQuick" data-v="stats">Share my season</button><button class="btn sm" data-a="phoneQuick" data-v="banter">Send some banter</button></div></div>`;
   } else {
-    chat = `<div class="panel">${fr.length ? `<div class="stack" style="gap:8px">${fr.map(card).join("")}</div>` : `<div class="empty">No friends yet. Send your code <b>${esc(G.online.code)}</b> to a friend who plays Touchline, then add theirs on the right.</div>`}</div>`;
+    const lg = fr.map((c) => Online.profiles[c]).filter(Boolean).concat([Online.profileData()]).filter((x) => x.mode === "career").sort((a, b) => (b.ovr || 0) - (a.ovr || 0) || (b.goals || 0) - (a.goals || 0));
+    const league = lg.length > 1 ? `<div class="panel" style="margin-top:16px"><h3>Friends league</h3><div class="tw"><table class="t"><thead><tr><th>#</th><th>Player</th><th>Club</th><th class="r">Ovr</th><th class="r">Goals</th><th class="r">Caps</th><th class="r">Trophies</th></tr></thead><tbody>${lg.map((x, i) => `<tr class="${x.code === G.online.code ? "me" : ""}"><td>${i + 1}</td><td><b>${esc(x.name)}</b></td><td class="small">${esc(x.club)}</td><td class="r">${x.ovr || "–"}</td><td class="r">${x.goals || 0}</td><td class="r">${x.caps || 0}</td><td class="r">${x.trophies || 0}</td></tr>`).join("")}</tbody></table></div></div>` : "";
+    chat = `<div class="panel">${fr.length ? `<div class="stack" style="gap:8px">${fr.map(card).join("")}</div>` : `<div class="empty">No friends yet. Send your code <b>${esc(G.online.code)}</b> to a friend who plays Touchline, then add theirs on the right.</div>`}</div>${league}`;
   }
   return head + `<div class="grid g21"><div class="stack" style="gap:16px">${chat}</div><div class="stack" style="gap:16px">
   <div class="panel stack"><h3>Add a friend</h3><div class="row"><input type="text" id="friendCode" placeholder="e.g. SUNNY-1234" style="flex:1;min-width:0;text-transform:uppercase" aria-label="Friend code"><button class="btn pri" data-a="phoneAdd">Add</button></div>
@@ -1047,6 +1074,11 @@ A.legacySkip = (el) => {
   setTimeout(() => { try { for (let k = 0; k < n; k++) fastSeason(); } catch (e) { console.error(e); } busy(false); render(); autosave(); toast(`${kid.name} is now 16.`); }, 40);
 };
 A.legacyStart = (el) => { startLegacy(+el.dataset.i); faceCache.clear(); UI.page = "career"; render(); autosave(); };
+A.goPundit = () => { becomePundit(); render(); autosave(); };
+A.goManager = (el) => { openModal("confirm", { title: "Become a manager?", text: "Your save switches to manager mode at this club. Your playing record is kept.", yes: "Take the job", then: () => { switchToManager(+el.dataset.v, false, 0); UI.page = "home"; faceCache.clear(); render(); autosave(); } }); };
+A.buyClub = (el) => { const c = club(+el.dataset.v), price = clubPrice(c); openModal("confirm", { title: `Buy ${c.name}?`, text: `It costs ${money(price)}. You'll be the owner and the manager. Your save switches to manager mode.`, yes: "Buy the club", then: () => { switchToManager(c.id, true, price); UI.page = "home"; faceCache.clear(); render(); autosave(); } }); };
+A.ownerInvest = (el) => { toast(ownerInvest(+el.dataset.v)); render(); autosave(); };
+A.challenge = async (el) => { el.disabled = true; try { const r = await Online.challenge(el.dataset.v); toast(r); } catch (e) { toast("The challenge didn't go through."); } el.disabled = false; };
 A.trainInt = (el) => { toast(setIntensity(+el.dataset.v)); render(); autosave(); };
 A.trainSess = (el) => { toast(toggleSession(el.dataset.v)); render(); autosave(); };
 A.pickTrait = (el) => { G.career.trait = el.dataset.v; toast(`You're a ${TRAITS[el.dataset.v].n.toLowerCase()}.`); render(); autosave(); };
@@ -1136,7 +1168,7 @@ function busy(on, text) {
   else if (el) el.hidden = true;
 }
 function doContinue() {
-  if (UI.busy || !G || (G.career && G.career.retired)) return;
+  if (UI.busy || !G || (G.mode === "career" && G.career && G.career.retired && !G.career.pundit)) return;
   if (G.sacked && G.mode === "manager") { const m = G.inbox.find((x) => x.act && x.act.kind === "jobs" && !x.done); if (m) openModal("msg", { id: m.id }); return; }
   const pend = G.inbox.find((x) => x.act && x.act.kind === "event" && !x.done);
   if (pend) { pend.read = true; render(); openModal("msg", { id: pend.id }); return; }
@@ -1348,7 +1380,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610141642";
+const BUILD = "202610141654";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;

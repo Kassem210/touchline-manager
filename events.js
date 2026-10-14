@@ -71,7 +71,7 @@ function kidsSeason() {
 
 // ---------- random events ----------
 const tmName = (c) => { const p = c.tm != null ? pl(c.tm) : null; return p ? fullName(p) : "A teammate"; };
-const pickTeammate = () => { const me = pl(G.userPlayer); const l = squad(me.club).filter((q) => q.id !== me.id); return l.length ? pick(l).id : null; };
+const pickTeammate = () => { const me = pl(G.userPlayer); if (!me || me.club < 0) return null; const l = squad(me.club).filter((q) => q.id !== me.id); return l.length ? pick(l).id : null; };
 const ctrust = (d) => { G.career.trust = clamp((G.career.trust == null ? 50 : G.career.trust) + d, 0, 100); };
 const cmor = (d) => { const p = pl(G.userPlayer); p.mor = clamp(p.mor + d, 5, 100); };
 const cfame = (d) => { G.career.life.fame = clamp(G.career.life.fame + d, 0, 100); };
@@ -88,14 +88,14 @@ const EVENTS = [
       ["Politely turn it down", () => { cmor(-1); return "He understands, but he looks a bit hurt."; }]] },
   { id: "party", m: "career", w: 2, ok: () => true, ctx: () => ({ tm: pickTeammate() }),
     t: (c) => `${tmName(c)} invites you to his birthday party`, b: () => "It's two nights before the next match. Half the squad will be there.",
-    o: [["Go and enjoy it", () => { chappy(5); const p = pl(G.userPlayer); p.fit = clamp(p.fit - 10, 30, 100); partnerMood(-4, "You came home at 4am."); if (rnd() < 0.2) { ctrust(-6); return "Photos leaked. The manager is not happy."; } return "Great night. You're tired, but the bond with the lads is stronger."; }],
+    o: [["Go and enjoy it", () => { chappy(5); cdisc(4, "spotted partying before a match"); const p = pl(G.userPlayer); p.fit = clamp(p.fit - 10, 30, 100); partnerMood(-4, "You came home at 4am."); if (rnd() < 0.2) { ctrust(-6); cdisc(8, "pictured partying two nights before a match"); return "Photos leaked. The manager is not happy."; } return "Great night. You're tired, but the bond with the lads is stronger."; }],
       ["Show up for an hour", () => { chappy(2); cmor(2); return "You show your face and leave early. Everyone's happy."; }],
       ["Stay home and rest", () => { cmor(-1); ctrust(1); return "The lads tease you a bit, but the manager notices your professionalism."; }]] },
   { id: "press", m: "career", w: 2, ok: () => pl(G.userPlayer).club >= 0, ctx: () => ({}),
     t: () => "A journalist asks about the manager", b: () => "There are rumours the manager could be sacked. A reporter asks if the players still believe in him.",
     o: [["Back the manager publicly", () => { ctrust(5); return "The manager thanks you privately."; }],
       ["No comment", () => "The story moves on."],
-      ["Say the team needs a change", () => { ctrust(-12); cfame(3); return "It's front-page news. The manager won't forget this."; }]] },
+      ["Say the team needs a change", () => { ctrust(-12); cfame(3); cdisc(6, "criticising the manager in public"); return "It's front-page news. The manager won't forget this."; }]] },
   { id: "loan", m: "career", w: 1.5, ok: () => G.career.life.cash > 80000, ctx: () => ({ tm: pickTeammate(), amt: pick([20000, 50000, 100000]) }),
     t: (c) => `${tmName(c)} asks to borrow money`, b: (c) => `${tmName(c)} is in trouble with debts and asks you to lend him ${money(c.amt)}. He promises to pay it back.`,
     o: [["Lend him the money", (c) => { ccash(-c.amt); cmor(3); if (rnd() < 0.6) { ccash(c.amt); return `He paid you back within a month, with a thank-you dinner.`; } partnerMood(-8, `She found out you lent ${money(c.amt)} to a teammate who never paid it back.`); return "Weeks pass. The money never comes back."; }],
@@ -103,12 +103,12 @@ const EVENTS = [
       ["Say no", () => { cmor(-1); return "He says he understands. Things are a bit cold between you."; }]] },
   { id: "hospital", m: "career", w: 1.5, ok: () => true, ctx: () => ({}),
     t: () => "Children's hospital visit", b: () => "The club's charity foundation asks if you'll visit sick children on your day off.",
-    o: [["Go and spend the afternoon", () => { cfame(3); chappy(5); return "The kids' faces lit up. The video went viral."; }],
+    o: [["Go and spend the afternoon", () => { cfame(3); chappy(5); crep(4); return "The kids' faces lit up. The video went viral."; }],
       ["Send signed shirts instead", () => { cfame(1); return "A kind gesture. The hospital thanks you."; }],
       ["Decline", () => { cfame(-2); return "A tabloid mentions you were the only player who didn't go."; }]] },
   { id: "abuse", m: "career", w: 1.5, ok: () => true, ctx: () => ({}),
     t: () => "Abuse on social media", b: () => "After the last game, rival fans are flooding your comments with insults.",
-    o: [["Clap back at them", () => { cfame(2); ctrust(-3); return "Your reply went viral, but the club asked you to tone it down."; }],
+    o: [["Clap back at them", () => { cfame(2); ctrust(-3); cdisc(3, "in a social media row"); return "Your reply went viral, but the club asked you to tone it down."; }],
       ["Ignore it", () => { cmor(-2); return "It stings, but it passes."; }],
       ["Report it and post a calm message", () => { cfame(2); cmor(1); return "Fans and the club respect how you handled it."; }]] },
   { id: "mentor", m: "career", w: 1.5, ok: () => age(pl(G.userPlayer)) >= 24, ctx: () => ({}),
@@ -129,7 +129,7 @@ const EVENTS = [
     t: () => "Bust-up in training", b: (c) => `${tmName(c)} and another player start pushing each other after a late tackle in training.`,
     o: [["Step in and calm it down", () => { ctrust(4); cmor(1); return "You split them up. The manager notices your leadership."; }],
       ["Stay out of it", () => "The coaches sort it out."],
-      ["Take your teammate's side", () => { cmor(2); ctrust(-3); return "He appreciates the loyalty, but the dressing room is split."; }]] },
+      ["Take your teammate's side", () => { cmor(2); ctrust(-3); cdisc(3); return "He appreciates the loyalty, but the dressing room is split."; }]] },
   { id: "holiday", m: "career", w: 2, ok: () => !!G.career.life.partner, ctx: () => ({ eg: egyptLife() }),
     t: () => `${G.career.life.partner} wants a holiday`, b: () => `${G.career.life.partner} says you never spend time together and wants to get away.`,
     o: [["Book the Maldives (€40K)", () => { ccash(-40000); partnerMood(16, "She's still talking about the Maldives."); chappy(6); return "Ten days of sun. She's over the moon."; }],
@@ -152,11 +152,11 @@ const EVENTS = [
   { id: "president", m: "career", w: 0.8, ok: () => pl(G.userPlayer).club >= 0 && (pl(G.userPlayer).form.slice(-5).reduce((s, x) => s + x, 0) / Math.max(1, pl(G.userPlayer).form.slice(-5).length)) >= 7, ctx: () => ({}),
     t: () => "A gift from the club president", b: () => "The club president is so pleased with your form that he offers you a luxury car.",
     o: [["Accept it", () => { const L = G.career.life; if (!L.items.includes("car4")) L.items.push("car4"); chappy(4); return "A brand-new supercar is parked outside your house."; }],
-      ["Accept and auction it for charity", () => { cfame(4); chappy(3); return "The car raised a fortune for charity. The fans love you."; }],
+      ["Accept and auction it for charity", () => { cfame(4); chappy(3); crep(4); return "The car raised a fortune for charity. The fans love you."; }],
       ["Politely decline", () => { ctrust(1); return "The president respects your humility."; }]] },
   { id: "cover", m: "career", w: 1.2, ok: () => pl(G.userPlayer).club >= 0, ctx: () => ({ tm: pickTeammate() }),
     t: (c) => `${tmName(c)} asks you to cover for him`, b: (c) => `${tmName(c)} skipped a recovery session and asks you to tell the coaches he was with you.`,
-    o: [["Cover for him", () => { cmor(2); if (rnd() < 0.3) { ctrust(-6); return "The coaches found out. You're both in trouble."; } return "Nobody noticed. He owes you one."; }],
+    o: [["Cover for him", () => { cmor(2); if (rnd() < 0.3) { ctrust(-6); cdisc(6, "caught lying to the coaches"); return "The coaches found out. You're both in trouble."; } return "Nobody noticed. He owes you one."; }],
       ["Tell the truth", () => { ctrust(3); cmor(-3); return "The coaches appreciate your honesty. He doesn't."; }],
       ["Stay out of it", () => "You don't get involved."]] },
   { id: "fanphoto", m: "career", w: 1.5, ok: () => true, ctx: () => ({}),
@@ -198,12 +198,12 @@ const EVENTS = [
   // ----- more player scenarios -----
   { id: "fixer", m: "career", w: 0.8, ok: () => pl(G.userPlayer).club >= 0, ctx: () => ({ amt: pick([50000, 100000, 250000]) }),
     t: () => "A stranger with an offer", b: (c) => `A man you've never met offers you ${money(c.amt)} in cash to pick up a yellow card in the first half of your next match.`,
-    o: [["Report it to the club", () => { ctrust(8); cfame(4); return "The club and the federation thank you. The story makes you a hero."; }],
+    o: [["Report it to the club", () => { ctrust(8); cfame(4); crep(8); return "The club and the federation thank you. The story makes you a hero."; }],
       ["Say no and walk away", () => "You never hear from him again."],
-      ["Take the money", (c) => { if (rnd() < 0.45) { const p = pl(G.userPlayer); p.sus = Math.max(p.sus, 12); cfame(-15); ctrust(-30); partnerMood(-25, "She can't believe you got involved in match-fixing."); return "You were caught. A 12-match ban and your name is all over the news."; } ccash(c.amt); return `${money(c.amt)} in an envelope. You'll have to live with it.`; }]] },
+      ["Take the money", (c) => { if (rnd() < 0.45) { cdisc(60, "banned for match-fixing"); const p = pl(G.userPlayer); p.sus = Math.max(p.sus, 12); cfame(-15); ctrust(-30); partnerMood(-25, "She can't believe you got involved in match-fixing."); return "You were caught. A 12-match ban and your name is all over the news."; } ccash(c.amt); return `${money(c.amt)} in an envelope. You'll have to live with it.`; }]] },
   { id: "supplement", m: "career", w: 1, ok: () => true, ctx: () => ({}),
     t: () => "A miracle supplement", b: () => "A guy at the gym swears a new supplement doubles recovery speed. It isn't on the club's approved list.",
-    o: [["Try it", () => { const p = pl(G.userPlayer); if (rnd() < 0.3) { p.sus = Math.max(p.sus, 16); p.pot = Math.max(p.o, p.pot - 2); cfame(-8); ctrust(-15); return "You failed a drug test. Banned for 16 matches, and your reputation has taken a hit."; } p.fit = 100; return "You feel great. Nobody noticed. This time."; }],
+    o: [["Try it", () => { const p = pl(G.userPlayer); if (rnd() < 0.3) { cdisc(45, "failing a drug test"); p.sus = Math.max(p.sus, 16); p.pot = Math.max(p.o, p.pot - 2); cfame(-8); ctrust(-15); return "You failed a drug test. Banned for 16 matches, and your reputation has taken a hit."; } p.fit = 100; return "You feel great. Nobody noticed. This time."; }],
       ["Ask the club doctor first", () => { ctrust(2); return "The doctor says it's banned. Good call."; }],
       ["Ignore it", () => "You stick to the club's programme."]] },
   { id: "extrasession", m: "career", w: 1.5, ok: () => pl(G.userPlayer).club >= 0, ctx: () => ({}),
@@ -218,7 +218,7 @@ const EVENTS = [
     t: () => "The nutritionist's plan", b: () => "The club nutritionist wants you on a strict diet: no sugar, no fast food, early nights.",
     o: [["Follow it strictly", () => { chappy(-4); const p = pl(G.userPlayer); if (rnd() < 0.5 && age(p) <= 27) { p.pot = Math.min(97, p.pot + 1); G.career.potLog = { d: 1, s: G.season, day: G.day, why: "a professional diet" }; return "You're leaner and sharper. The coaches raise your ceiling."; } return "You're leaner and sharper."; }],
       ["Follow it most days", () => "A sensible balance."],
-      ["Ignore it", () => { ctrust(-2); return "The nutritionist tells the manager."; }]] },
+      ["Ignore it", () => { ctrust(-2); cdisc(2); return "The nutritionist tells the manager."; }]] },
   { id: "documentary", m: "career", w: 0.8, ok: () => G.career.life.fame >= 15, ctx: () => ({ fee: pick([150000, 300000, 600000]) }),
     t: () => "A documentary about you", b: (c) => `A streaming service wants to film a documentary about your season and offers ${money(c.fee)}.`,
     o: [["Let the cameras in", (c) => { ccash(c.fee); cfame(6); partnerMood(-4, "Cameras in the house every day."); ctrust(-2); return "The show is a hit. The dressing room finds the cameras annoying."; }],
@@ -226,11 +226,11 @@ const EVENTS = [
       ["Turn it down", () => "You keep your private life private."]] },
   { id: "sickfan", m: "career", w: 1.2, ok: () => true, ctx: () => ({}),
     t: () => "A young fan's wish", b: () => "A seriously ill boy's only wish is to meet you before your next game.",
-    o: [["Meet him and promise a goal", () => { cmor(8); cfame(3); chappy(5); return "You spend an hour with him. You've never been more fired up for a match."; }],
+    o: [["Meet him and promise a goal", () => { cmor(8); cfame(3); chappy(5); crep(4); return "You spend an hour with him. You've never been more fired up for a match."; }],
       ["Record a video message", () => { cfame(1); return "His family send a thank-you note."; }]] },
   { id: "oldclub", m: "career", w: 0.8, ok: () => G.career.life.cash > 250000, ctx: () => ({}),
     t: () => "Your first club needs help", b: () => "The small club where you started as a kid is close to closing because of money problems.",
-    o: [["Donate €200K", () => { ccash(-200000); cfame(4); chappy(6); return "The club is saved, and the youth stand will carry your name."; }],
+    o: [["Donate €200K", () => { ccash(-200000); cfame(4); chappy(6); crep(5); return "The club is saved, and the youth stand will carry your name."; }],
       ["Visit and raise awareness", () => { cfame(2); chappy(2); return "Your visit brings in sponsors."; }],
       ["Do nothing", () => { chappy(-2); return "You see the news later. It stings."; }]] },
   { id: "parents", m: "career", w: 1, ok: () => G.career.life.cash > 80000, ctx: () => ({}),
@@ -240,8 +240,8 @@ const EVENTS = [
       ["Not right now", () => { chappy(-4); return "They say it's fine. It doesn't feel fine."; }]] },
   { id: "oldposts", m: "career", w: 0.8, ok: () => G.career.life.fame >= 8, ctx: () => ({}),
     t: () => "Old posts resurface", b: () => "Someone has dug up embarrassing posts you made as a teenager. They're trending.",
-    o: [["Apologise publicly", () => { cfame(-1); ctrust(1); return "Most fans accept the apology."; }],
-      ["Ignore it", () => { cfame(-4); return "It drags on for a week."; }],
+    o: [["Apologise publicly", () => { cfame(-1); ctrust(1); crep(1); return "Most fans accept the apology."; }],
+      ["Ignore it", () => { cfame(-4); crep(-5); return "It drags on for a week."; }],
       ["Delete your account", () => { cfame(-2); chappy(3); return "Peace and quiet. You don't miss it."; }]] },
   { id: "secret", m: "career", w: 1, ok: () => pl(G.userPlayer).club >= 0, ctx: () => { const me = pl(G.userPlayer), cur = club(me.club); const l = G.clubs.filter((c) => c.id !== cur.id && c.rep > cur.rep && c.rep <= me.o + 8); return { c: l.length ? pick(l).id : null }; },
     t: (c) => (c.c != null ? `${club(c.c).name} make a secret approach` : "A secret approach"), b: (c) => `Someone close to ${c.c != null ? club(c.c).name : "a bigger club"} asks if you'd be open to a move.`,
@@ -251,7 +251,7 @@ const EVENTS = [
   { id: "rival", m: "career", w: 1.2, ok: () => pl(G.userPlayer).club >= 0, ctx: () => { const me = pl(G.userPlayer); const l = squad(me.club).filter((q) => q.pos === me.pos && q.id !== me.id); return { tm: l.length ? pick(l).id : pickTeammate() }; },
     t: (c) => `${tmName(c)} takes a dig at you`, b: (c) => `${tmName(c)}, who plays your position, told a reporter he deserves to start ahead of you.`,
     o: [["Answer him on the pitch", () => { cmor(6); G.career.bonusXP = (G.career.bonusXP || 0) + 0.3; return "You train like a man possessed this week."; }],
-      ["Confront him in the dressing room", () => { if (rnd() < 0.5) { cmor(3); return "He backs down. Message received."; } ctrust(-5); return "It turns into a shouting match. The manager is furious with you both."; }],
+      ["Confront him in the dressing room", () => { if (rnd() < 0.5) { cmor(3); cdisc(2); return "He backs down. Message received."; } ctrust(-5); cdisc(9, "in a dressing-room bust-up"); return "It turns into a shouting match. The manager is furious with you both."; }],
       ["Laugh it off", () => { ctrust(2); return "The manager likes how calmly you handled it."; }]] },
   { id: "language", m: "career", w: 1, ok: () => { const p = pl(G.userPlayer); return p.club >= 0 && club(p.club).nat !== p.nat; }, ctx: () => ({}),
     t: () => "Language lessons", b: () => "The club offers you language lessons to settle in better.",
@@ -265,7 +265,7 @@ const EVENTS = [
     t: () => "Caught speeding", b: () => "Police stopped you doing 160 km/h in your car. A photographer was nearby.",
     o: [["Pay the fine and apologise", () => { ccash(-5000); cfame(-1); return "A small story, quickly forgotten."; }],
       ["Get a lawyer to fight it (€40K)", () => { ccash(-40000); if (rnd() < 0.5) return "Case dismissed."; cfame(-3); return "You lost, and it looked arrogant."; }],
-      ["Blame your driver", () => { cfame(-5); ctrust(-3); partnerMood(-5, "She's embarrassed by the story in the papers."); return "Nobody believes it. The papers have a field day."; }]] },
+      ["Blame your driver", () => { cfame(-5); ctrust(-3); cdisc(6, "lying about a speeding offence"); partnerMood(-5, "She's embarrassed by the story in the papers."); return "Nobody believes it. The papers have a field day."; }]] },
   { id: "captainband", m: "career", w: 0.7, ok: () => G.career.captain === pl(G.userPlayer).club, ctx: () => ({ tm: pickTeammate() }),
     t: () => "Dressing room trouble", b: (c) => `As captain, the squad wants you to tell the manager that ${tmName(c)} is being treated unfairly.`,
     o: [["Speak up for him", () => { cmor(4); ctrust(-3); return "The squad respects you. The manager less so."; }],
@@ -318,6 +318,11 @@ const EVENTS = [
     o: [["Fire up the fans", () => { squad(G.userClub).forEach((p) => (p.mor = clamp(p.mor + 5, 0, 100))); return "The stadium will be rocking."; }],
       ["Show respect", () => { mconf(1); return "A classy answer."; }],
       ["Mock them", () => { squad(G.userClub).forEach((p) => (p.mor = clamp(p.mor + 3, 0, 100))); mconf(-2); return "Their players have pinned your quotes on their dressing-room wall."; }]] },
+  { id: "presser", m: "career", w: 0, ok: () => false, ctx: () => ({}),
+    t: () => "Press conference", b: () => "",
+    o: [[null, (c) => { crep(2); ctrust(1); return c.won ? "\"It's all about the team.\" The fans love your humility." : "\"We'll learn and come back stronger.\" A mature answer."; }, () => "Stay humble"],
+      [null, (c) => { cfame(2); crep(c.won ? 1 : -1); return c.won ? "\"I told you I'd deliver.\" Confident, and you backed it up." : "\"I'm still the best player out there.\" Some fans roll their eyes."; }, () => "Talk yourself up"],
+      [null, (c) => { cfame(4); crep(-3); ctrust(-3); cdisc(4, "after explosive comments"); return c.lost ? "You blamed the referee and your teammates. It's tomorrow's back page." : `You mocked ${c.opp}. It's everywhere, and not everyone is laughing.`; }, () => "Say something explosive"]] },
 ];
 const EVENT_BY = Object.fromEntries(EVENTS.map((e) => [e.id, e]));
 function maybeEvent() {
@@ -329,7 +334,7 @@ function maybeEvent() {
   const pool = EVENTS.filter((e) => e.m === G.mode && (G.recentEv || []).indexOf(e.id) < 0).filter((e) => { try { return e.ok(); } catch (x) { return false; } });
   if (!pool.length) return;
   const ev = wpick(pool.map((e) => [e, e.w]));
-  const ctx = ev.ctx();
+  let ctx; try { ctx = ev.ctx(); ev.t(ctx); ev.b(ctx); } catch (x) { return; }
   G.recentEv = [ev.id].concat(G.recentEv || []).slice(0, 5);
   inbox({ t: ev.t(ctx), b: ev.b(ctx), type: "event", act: { kind: "event", ev: ev.id, ctx } });
 }

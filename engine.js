@@ -287,6 +287,7 @@ function initSeason(first) {
     if (info.region === "EU") setupEuro(cid, teams); else setupGroups(cid, teams);
   }
   if (G.nations) { scheduleInternational(); scheduleSummer(); }
+  if (G.mode === "career" && G.career) careerSeasonStart();
   G.day = 0;
   G.clubs.forEach((c) => (c.seasonRes = { w: 0, d: 0, l: 0 }));
 }
@@ -480,7 +481,10 @@ function validateUserLineup(c) {
 }
 
 // ---------- daily / weekly ----------
-function isUserFx(f) { return f.h === G.userClub || f.a === G.userClub || userInNationFx(f); }
+function isUserFx(f) {
+  if (G.mode === "career" && G.career && (G.career.retired || G.career.fa)) return userInNationFx(f);
+  return f.h === G.userClub || f.a === G.userClub || userInNationFx(f);
+}
 function userFxOn(day) { return (DAYIDX[day] || []).map((i) => G.fx[i]).find((f) => isUserFx(f)); }
 function nextUserFx() { return G.fx.filter((f) => isUserFx(f) && !f.p).sort((a, b) => a.d - b.d)[0]; }
 
@@ -526,7 +530,7 @@ function weekly() {
   });
   if (G.mode === "manager") boardCheck();
   maybeEvent();
-  if (G.mode === "career") { careerWeekly(); lifeWeekly(); }
+  if (G.mode === "career") { careerWeekly(); lifeWeekly(); careerWeekly2(); }
 }
 
 function develop(p) {
@@ -564,6 +568,7 @@ function boardCheck() {
   const n = lg.clubs.length;
   const diff = (pos - exp) / n;
   G.mgr.conf = clamp(G.mgr.conf - diff * 4 + (diff < 0 ? 0.6 : 0) + (c.bal < -2e6 ? -1.5 : 0), 0, 100);
+  if (G.mgr.owner) { G.mgr.conf = 100; return; }
   if (G.mgr.conf < 8 && !G.sacked) sackManager("results");
 }
 function sackManager(why) {
@@ -725,7 +730,7 @@ function releasePlayer(pid) {
 
 // ---------- career mode ----------
 function careerWeekly() {
-  const p = pl(G.userPlayer); if (!p) return;
+  const p = pl(G.userPlayer); if (!p || p.club < 0) return;
   const recent = p.form.slice(-5);
   if (recent.length && avg(recent) > 7.2) p.mor = clamp(p.mor + 2, 0, 100);
   const c = club(p.club);
@@ -733,7 +738,7 @@ function careerWeekly() {
   if (sameRank > 1) p.mor = clamp(p.mor - 1, 0, 100);
 }
 function careerOffers() {
-  const p = pl(G.userPlayer); if (!p || p.loan || (G.career && G.career.retired)) return;
+  const p = pl(G.userPlayer); if (!p || p.loan || p.club < 0 || (G.career && (G.career.retired || G.career.fa))) return;
   const C = G.career, ag = agentOf();
   const recent = p.form.slice(-8), f = recent.length ? avg(recent) : 6.4;
   const wants = p.listed || C.agentSearch;
@@ -757,15 +762,17 @@ function careerRespond(msg, accept) {
   msg.done = true;
   const p = pl(G.userPlayer), a = msg.act, b = club(a.cid);
   if (!accept) return "You turned the offer down.";
-  if (!inWindow()) return "The window has closed. The move can't go through.";
+  if (!inWindow() && p.club >= 0) return "The window has closed. The move can't go through.";
+  if (p.club >= 0) G.career.lastClub = p.club;
   doTransfer(p, b, a.fee, 4, a.wage);
-  G.userClub = b.id;
+  G.userClub = b.id; G.career.fa = false; G.career.captain = null;
   inbox({ t: `Welcome to ${b.name}`, b: `You've completed your move to ${b.name}. New contract: ${money(a.wage)}/wk until ${p.ce + 1}.`, type: "career" });
   return `You've joined ${b.name}!`;
 }
 function careerRequest(kind) {
   const p = pl(G.userPlayer), c = club(p.club);
-  if (kind === "list") { p.listed = p.listed ? 0 : 1; if (p.listed) G.career.trust = clamp((G.career.trust || 50) - 10, 0, 100); return p.listed ? "You've handed in a transfer request. The manager isn't pleased, but clubs will be told you're available." : "You've told the club you're happy to stay."; }
+  if (p.club < 0) return "You don't have a club right now.";
+  if (kind === "list") { p.listed = p.listed ? 0 : 1; if (p.listed) { G.career.trust = clamp((G.career.trust || 50) - 10, 0, 100); cdisc(3); } return p.listed ? "You've handed in a transfer request. The manager isn't pleased, but clubs will be told you're available." : "You've told the club you're happy to stay."; }
   if (kind === "loan") {
     if (p.loan) return "You're already out on loan.";
     if (!inWindow()) return "Loans can only be arranged while a transfer window is open.";
@@ -790,6 +797,7 @@ function careerRequest(kind) {
 
 // ---------- season end ----------
 function endSeason() {
+  if (G.mode === "career" && G.career && !G.career.retired) careerSeasonReview();
   const summary = [];
   // league outcomes
   for (const id in G.leagues) {
@@ -915,7 +923,7 @@ function endSeason() {
   for (let i = fas; i < 140; i++) { const p = genPlayer({ pos: pick(POSITIONS), ovr: ri(45, 70), ag: ri(20, 32), nat: wpick(FOR_EU) }); p.club = -1; p.wage = wageFor(p, null); p.ce = null; }
   for (const id in G.players) G.players[id].val = playerValue(G.players[id]);
   // manager review
-  if (G.mode === "manager" && !G.sacked && G.mgr.conf < 25) sackManager("results this season");
+  if (G.mode === "manager" && !G.sacked && !G.mgr.owner && G.mgr.conf < 25) sackManager("results this season");
   if (G.mode === "career") {
     const p = pl(G.userPlayer);
     if (age(p) >= 40) inbox({ t: "Time to hang up the boots?", b: "Your body is telling you it's time. You can retire from the Career page whenever you're ready.", type: "career" });

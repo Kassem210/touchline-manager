@@ -180,7 +180,7 @@ function lifeWeekly() {
   const L = G.career && G.career.life, p = pl(G.userPlayer);
   if (!L || !p) return;
   L.ap = Math.max(0, 3 - (G.career.train ? G.career.train.extra.length : 0));
-  const net = G.career.retired ? 0 : Math.round(p.wage * (0.55 - agentOf().fee)) + (L.spons ? Math.round(L.spons.wk * 0.7) : 0);
+  const net = (G.career.retired || p.club < 0 ? 0 : Math.round(p.wage * (0.55 - agentOf().fee)) + (L.spons ? Math.round(L.spons.wk * 0.7) : 0)) + (G.career.pundit ? Math.round(G.career.pundit.wk * 0.6) : 0);
   const upkeep = L.items.reduce((s, id) => s + (SHOP_BY[id] ? SHOP_BY[id].up : 0), 0) + kidCosts(L);
   L.cash += net - upkeep;
   if (L.cash < 0) {
@@ -284,7 +284,8 @@ function lifeAction(kind, arg) {
     L.happy = clamp(L.happy + 5, 0, 100); p.fit = clamp(p.fit - 12, 30, 100);
     partnerMood(-5, "She's tired of your nights out.");
     if (G.career.ptrack) G.career.ptrack.nights = (G.career.ptrack.nights || 0) + 1;
-    if (rnd() < (traitOf() && traitOf().pro ? 0.05 : 0.1)) { L.happy = clamp(L.happy - 7, 0, 100); p.mor = clamp(p.mor - 6, 5, 100); L.fame = clamp(L.fame + 1, 0, 100); G.career.trust = clamp((G.career.trust || 50) - 6, 0, 100); partnerMood(-15, "She saw the photos of your night out in the papers."); return "The papers got photos of your night out. The manager and your partner are both unhappy."; }
+    cdisc(3);
+    if (rnd() < (traitOf() && traitOf().pro ? 0.05 : 0.1)) { L.happy = clamp(L.happy - 7, 0, 100); p.mor = clamp(p.mor - 6, 5, 100); L.fame = clamp(L.fame + 1, 0, 100); G.career.trust = clamp((G.career.trust || 50) - 6, 0, 100); cdisc(9, "pictured on a wild night out"); partnerMood(-15, "She saw the photos of your night out in the papers."); return "The papers got photos of your night out. The manager and your partner are both unhappy."; }
     return "Great night with the lads. A bit tired, though.";
   }
   if (kind === "family") { L.happy = clamp(L.happy + 5, 0, 100); L.rel = clamp(L.rel + 5, 0, 100); p.mor = clamp(p.mor + 2, 5, 100); partnerMood(9, "She enjoyed the family day."); return "A quiet day with the family. Just what you needed."; }
@@ -300,7 +301,7 @@ function lifeAction(kind, arg) {
     partnerMood(6, "You made time to talk.");
     return L.pm < 40 ? `${L.partner}: "${L.pmWhy || "I just feel ignored."}" Talking helped a little.` : `${L.partner} seems ${moodWord(L.pm).toLowerCase()}. ${L.pmWhy ? "She mentions: " + L.pmWhy : ""}`;
   }
-  if (kind === "charity") { if (!spend(100000)) { L.ap++; return "The donation is €100K."; } L.happy = clamp(L.happy + 4, 0, 100); L.fame = clamp(L.fame + 3, 0, 100); return "Your donation made the news for all the right reasons."; }
+  if (kind === "charity") { if (!spend(100000)) { L.ap++; return "The donation is €100K."; } crep(4); L.happy = clamp(L.happy + 4, 0, 100); L.fame = clamp(L.fame + 3, 0, 100); return "Your donation made the news for all the right reasons."; }
   L.ap++;
   return "";
 }
@@ -313,6 +314,7 @@ const AGENTS = [
   { id: 2, n: "Local agency", fee: 0.06, wage: 0.1, offers: 0.4, spons: 0.15, fame: 8, d: "Solid deals and a decent contact book." },
   { id: 3, n: "International agency", fee: 0.1, wage: 0.17, offers: 0.8, spons: 0.3, fame: 20, d: "Big clubs return their calls." },
   { id: 4, n: "Super-agent", fee: 0.15, wage: 0.25, offers: 1.2, spons: 0.5, fame: 40, d: "The best deals in football, for a big cut." },
+  { id: 5, n: "Your father", fee: 0, wage: 0.15, offers: 0.8, spons: 0.25, fame: 0, hidden: true, d: "Your dad knows everyone in the game and works for free." },
 ];
 const agentOf = () => AGENTS[(G.career && G.career.agent) || 0];
 function signAgent(id) {
@@ -365,7 +367,9 @@ function careerSelBonus() {
   return 0.8 + ((C.trust == null ? 50 : C.trust) - 50) / 25 + (C.promise && C.promise > absDay() ? 3.5 : 0);
 }
 function managerTalk(kind, arg) {
-  const C = G.career, p = pl(G.userPlayer), c = club(p.club);
+  const C = G.career, p = pl(G.userPlayer);
+  if (p.club < 0) return "You don't have a club right now.";
+  const c = club(p.club);
   if (C.trust == null) C.trust = 50;
   if (C.talkCd && absDay() < C.talkCd) return `The manager is busy. Try again after ${fmtDate(Math.max(G.day, C.talkCd - G.season * 400))}.`;
   C.talkCd = absDay() + 14;
@@ -379,7 +383,7 @@ function managerTalk(kind, arg) {
   }
   if (kind === "complain") {
     if (rnd() < 0.45 && C.trust > 30) { C.promise = absDay() + 40; C.trust = clamp(C.trust - 5, 0, 100); return `"Fine. You'll get your chance. Don't waste it." He's annoyed, but you'll play more.`; }
-    C.trust = clamp(C.trust - 12, 0, 100); p.mor = clamp(p.mor - 6, 5, 100);
+    C.trust = clamp(C.trust - 12, 0, 100); p.mor = clamp(p.mor - 6, 5, 100); cdisc(6, "rowing with the manager");
     if (C.trust < 20 && !p.listed) { p.listed = 1; return `"If you're not happy, you can leave." The club have put you on the transfer list.`; }
     return `"Nobody is bigger than this club." That didn't go well.`;
   }
@@ -432,6 +436,7 @@ function retireUser() {
   const p = pl(G.userPlayer);
   G.career.retired = `${G.season}/${(G.season + 1) % 100}`;
   G.career.called = false;
+  if (p) testimonial(p);
   if (p && p.club >= 0) { G.career.lastClub = p.club; releaseToFA(p); }
   if (p) p.ret = 1;
 }
@@ -458,7 +463,8 @@ function startLegacy(ki) {
   const legacy = (old.legacy || []).concat([{ n: dad ? fullName(dad) : "Your father", s0: old.started, s1: old.retired, apps, goals, caps: dad ? dad.caps || 0 : 0, peak: dad ? Math.max(dad.o, ...dad.hist.map((h) => h.o)) : 0, trophies: old.trophies.length, awards: old.awards.length }]);
   if (dad) delete G.players[dad.id];
   G.userPlayer = p.id; G.userClub = c.id;
-  G.career = { tf: 2, trophies: [], awards: [], started: G.season, legacy, life: newLife(Math.round(old.life.cash * 0.5) + 25000), called: false, trait: null, train: { int: 1, extra: [] } };
+  G.career = { tf: 2, trophies: [], awards: [], started: G.season, legacy, life: newLife(Math.round(old.life.cash * 0.5) + 25000), called: false, trait: null, train: { int: 1, extra: [] }, agent: 5, rep: 50, disc: 0 };
+  careerSeasonStart();
   inbox({ t: `${fullName(p)} signs for ${c.name}`, b: `The next generation begins. ${kid.name} inherits ${money(Math.round(old.life.cash * 0.5))} from the family and his father's name on his back.`, type: "career" });
 }
 
@@ -505,6 +511,9 @@ function migrateSave() {
     if (L.partner && L.pm == null) L.pm = 65;
     if (G.career.trust == null) G.career.trust = 50;
     if (!G.career.train) G.career.train = { int: 1, extra: [] };
+    if (G.career.rep == null) G.career.rep = 50;
+    if (G.career.disc == null) G.career.disc = 0;
+    if (!G.career.goals && !G.career.retired && G.userPlayer) careerSeasonStart();
     if (L.partner && !L.ptype) L.ptype = pick(Object.keys(PERSONALITIES));
   }
   if (G.seasonEnd == null) G.seasonEnd = SEASON_END;

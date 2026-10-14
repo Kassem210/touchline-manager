@@ -383,6 +383,7 @@ function finishMatch(m) {
   if (G.mode === "career" && m.rt[G.userPlayer] != null) {
     const p = pl(G.userPlayer); const g = m.goals[p.id] || 0, a = m.ast[p.id] || 0;
     G.career.last = { f: f.i, r: m.rt[p.id], g, a };
+    if (typeof careerAfterMatch === "function" && !f.nt) careerAfterMatch(f, m);
   }
   return m;
 }
