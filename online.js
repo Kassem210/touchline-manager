@@ -39,11 +39,14 @@ const Online = {
     } catch (e) {
       this.state = "error";
       const c = (e && e.code) || "";
-      this.err = c.includes("api-key") ? "The Firebase API key wasn't accepted. Double-check the key in online.js."
+      const detail = ` [${c || (e && e.message) || "unknown"}]`;
+      this.err = (c.includes("unauthorized-domain") ? "This website isn't on Firebase's list of allowed sites. Add it under Authentication → Settings → Authorized domains."
+        : c.includes("api-key") ? "The Firebase API key wasn't accepted. Double-check the key in online.js."
         : c.includes("operation-not-allowed") || c.includes("admin-restricted") ? "Anonymous sign-in is switched off in Firebase. Turn it on under Authentication → Sign-in method."
         : c.includes("permission-denied") ? "Firestore refused the request. Check that the security rules were published."
+        : c.includes("not-found") || c.includes("failed-precondition") ? "The Firestore database doesn't exist yet. Create it under Firestore Database → Create database."
         : c.includes("network") || /fetch|import/i.test(String(e && e.message)) ? "Couldn't reach the chat server. Check your internet connection."
-        : `Couldn't connect (${c || (e && e.message) || "unknown error"}).`;
+        : "Couldn't connect.") + detail;
       console.error(e);
     }
     refreshOnlineUI();

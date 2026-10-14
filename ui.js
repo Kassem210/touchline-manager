@@ -1291,7 +1291,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610131927";
+const BUILD = "202610140419";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;
