@@ -194,7 +194,7 @@ function newWorld(opts) {
     G.userClub = customId != null ? customId : opts.clubId;
     const uc = club(G.userClub); uc.form = "4-3-3"; uc.auto = true; autoLineup(uc, true);
   } else {
-    G.career = { tf: 2, trophies: [], awards: [], started: G.season, caps: 0, req: null, offers: [], life: newLife(), called: false };
+    G.career = { tf: 2, trophies: [], awards: [], started: G.season, caps: 0, req: null, offers: [], life: newLife(), called: false, trait: opts.player.trait || null, train: { int: 1, extra: [] } };
     const cp = opts.player, c = club(opts.clubId);
     const p = genPlayer({ pos: cp.pos, ovr: cp.ovr, ag: cp.age, nat: cp.nat, cid: c.id, pot: cp.pot, names: [cp.fn, cp.ln] });
     if (cp.face) p.face = cp.face; if (cp.ph) p.ph = cp.ph; p.foot = cp.foot || p.foot;
@@ -498,7 +498,7 @@ function endDay() {
   checkComps();
   for (const id in G.players) {
     const p = G.players[id];
-    if (p.fit < 100) p.fit = Math.min(100, p.fit + (p.id === G.userPlayer && hasItem("pro2") ? 8 : 6));
+    if (p.fit < 100) p.fit = Math.min(100, p.fit + (p.id === G.userPlayer ? (hasItem("pro2") ? 2 : 0) + (traitOf() && traitOf().engine ? 2 : 0) : 0) + 6);
     if (p.inj > 0) { p.inj--; if (p.inj === 0 && p.club === G.userClub && G.mode === "manager") inbox({ t: `${shortName(p)} is fit again`, b: `${fullName(p)} has recovered from injury and is available for selection.`, type: "medical" }); }
   }
   if (inWindow()) aiTransferDay();
@@ -530,6 +530,7 @@ function weekly() {
 }
 
 function develop(p) {
+  if (G.mode === "career" && p.id === G.userPlayer && G.career && !G.career.retired) { developUser(p); return; }
   const ag = age(p);
   const played = p.st.ap, weeks = Math.max(1, G.day / 7);
   const pr = clamp(played / (weeks * 0.9), 0, 1);

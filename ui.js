@@ -240,7 +240,8 @@ function startCareer() {
     <div class="row"><span class="small muted" style="width:72px">Position</span><div class="seg">${opt("pos", POSITIONS.map((p) => [p, p]), cp.pos)}</div></div>
     <div class="row"><span class="small muted" style="width:72px">Foot</span><div class="seg">${opt("foot", [["R", "Right"], ["L", "Left"]], cp.foot)}</div>
     <span class="small muted" style="margin-left:12px">Age</span><div class="seg">${opt("age", [[16, "16"], [17, "17"], [18, "18"]], cp.age)}</div></div>
-    <div class="row"><span class="small muted" style="width:72px">Talent</span><div class="seg">${opt("tal", TALENTS.map((t, i) => [i, t[0]]), cp.tal)}</div><span class="small muted">Higher talent starts better and grows further.</span></div>
+    <div class="row"><span class="small muted" style="width:72px">Talent</span><div class="seg">${opt("tal", TALENTS.map((t, i) => [i, t[0]]), cp.tal)}</div><span class="small muted">Talent is only a starting point. How good you become depends on how you train and live.</span></div>
+    <div><h4 style="margin:6px 0 8px">Playstyle trait</h4><div class="traits">${traitsFor(cp.pos).map(([k, t]) => `<button class="trait ${cp.trait === k ? "on" : ""}" data-a="cpSet" data-k="trait" data-v="${k}"><b>${esc(t.n)}</b><span class="small muted">${esc(t.d)}</span></button>`).join("")}</div></div>
     <div class="row"><label class="f" style="flex:1;min-width:220px">Start in<select data-c="cpField" data-k="lg">${leagueOptions(cp.lg)}</select></label><label class="f" style="flex:1;min-width:160px">Save name<input type="text" id="saveName3" value="${esc(st.saveName || "")}" data-c="startField" data-k="saveName"></label></div><label class="row small" style="gap:8px;align-items:flex-start;max-width:520px"><input type="checkbox" id="realToggle" ${UI.start.real !== false ? "checked" : ""} data-c="startReal" style="margin-top:3px"><span><b>Real players</b><br><span class="muted">${Object.values(REAL_PLAYERS).reduce((s, x) => s + x.trim().split("\n").length, 0)} real players at 60+ clubs, using 2025/26 squads and approximate ratings. Everyone else is generated. Untick for an all-fictional world.</span></span></label>
     <div><h4 style="margin:6px 0 8px">Starting club</h4><div class="clublist">${clubs.map((c) => `<button class="clubpick ${cp.club === c.key ? "on" : ""}" data-a="cpClub" data-k="${c.key}">${crest(c, 26)}<span><b>${esc(c.name)}</b><br>${stars(c.rep)} <span class="small muted">${role(c.rep)}</span></span></button>`).join("") || `<div class="empty">No smaller clubs in this league. Try another.</div>`}</div></div>
   </div>
@@ -254,7 +255,7 @@ function startCareer() {
       <div class="row"><span class="small muted" style="width:70px">Beard</span><div class="seg">${["None", "Stubble", "Full", "Goatee", "Moustache"].map((l, i) => `<button class="${f[3] === i ? "on" : ""}" data-a="cpFace" data-i="3" data-v="${i}">${l}</button>`).join("")}</div></div>
       <div class="row"><span class="small muted" style="width:70px">Features</span>${[["Eyes", 4], ["Brows", 5], ["Nose", 6], ["Mouth", 7]].map(([l, i]) => `<button class="btn sm" data-a="cpCycle" data-i="${i}">${l}</button>`).join("")}</div>
     </div></div></div>
-  <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn pri go" data-a="beginCareer" ${cp.club ? "" : "disabled"}>Sign first contract</button></div></div>`;
+  <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn pri go" data-a="beginCareer" ${cp.club && cp.trait && TRAITS[cp.trait] && traitsFor(cp.pos).some(([k]) => k === cp.trait) ? "" : "disabled"}>Sign first contract</button></div></div>`;
 }
 
 // ---------- pages ----------
@@ -559,8 +560,8 @@ PAGES.career = () => {
   ${cr.retired ? legacyPanel() : ""}
   ${cr.legacy && cr.legacy.length ? `<div class="panel" style="margin-bottom:16px"><h3>Family legacy</h3>${cr.legacy.map((g) => `<div class="trophy"><span class="chip gold">${g.s0}–${esc(String(g.s1).slice(0, 4))}</span><span><b>${esc(g.n)}</b> <span class="small muted">${g.apps} apps · ${g.goals} goals · ${g.caps} caps · peak ${g.peak} · ${g.trophies} trophies</span></span></div>`).join("")}</div>` : ""}
   <div class="grid g21"><div class="stack" style="gap:16px">
-    <div class="panel"><div class="panel-h"><h3>Attributes</h3><div class="row">${ovrTag(p.o)}<span class="small muted">Potential ${p.pot}</span></div></div><div class="stack" style="gap:6px">${attrs.map((i) => attrRow(p, i)).join("")}</div></div>
-    <div class="panel stack"><h3>Training focus</h3><div class="seg">${attrs.map((i) => `<button class="${cr.tf === i ? "on" : ""}" data-a="train" data-v="${i}">${ATTRS[i]}</button>`).join("")}</div><p class="small muted" style="margin:0">Your focus attribute grows about twice as fast. Playing time and good form speed up everything.</p></div>
+    <div class="panel"><div class="panel-h"><h3>Attributes</h3><div class="row">${ovrTag(p.o)}<span class="small muted">Potential ${p.pot} ${G.mode === "career" && p.id === G.userPlayer ? `<b title="${esc(potTrend().text)}">${potTrend().arrow}</b>` : ""}</span></div></div><div class="stack" style="gap:6px">${attrs.map((i) => attrRow(p, i)).join("")}</div></div>
+    ${cr.retired ? "" : trainingPanel(p, cr, attrs)}
     <div class="panel"><h3>Career history</h3><div class="tw"><table class="t"><thead><tr><th>Season</th><th>Club</th><th class="r">Apps</th><th class="r">Gls</th><th class="r">Ast</th><th class="r">Avg</th><th class="r">Ovr</th></tr></thead><tbody>
       <tr class="me"><td>${G.season}/${(G.season + 1) % 100}</td><td>${esc(c.name)}</td><td class="r">${p.st.ap}</td><td class="r">${p.st.g}</td><td class="r">${p.st.as}</td><td class="r">${p.st.ap ? (p.st.rs / p.st.ap).toFixed(2) : "–"}</td><td class="r">${p.o}</td></tr>
       ${hist.map((h) => `<tr><td>${h.s}/${(h.s + 1) % 100}</td><td>${esc(h.cn)}</td><td class="r">${h.ap}</td><td class="r">${h.g}</td><td class="r">${h.as}</td><td class="r">${h.r}</td><td class="r">${h.o}</td></tr>`).join("")}</tbody></table></div>
@@ -592,6 +593,17 @@ function kidRow(k, i) {
   ${k.g === "boy" && a >= 4 && a <= 15 ? `<div class="row" style="margin-top:6px"><label class="small muted" for="train${i}" style="width:54px">Football</label><select id="train${i}" data-c="kidTrain" data-i="${i}" style="flex:1;min-width:200px">${TRAINING.map((t) => `<option value="${t.id}" ${(k.train || 0) === t.id ? "selected" : ""}>${esc(t.n)}${t.wk ? ` · ${money(t.wk)}/wk` : ""}</option>`).join("")}</select></div>` : ""}</div>`;
 }
 function brandBadge(id) { const b = BRAND_BY[id]; return `<span class="brand" style="background:${b.bg};color:${b.fg}">${esc(b.n)}</span>`; }
+function trainingPanel(p, cr, attrs) {
+  const plan = trainPlan(), t = traitOf(), tr = potTrend();
+  const sess = SESSIONS.filter((s) => (p.pos === "GK" ? s.id !== "finish" : s.id !== "keep"));
+  return `<div class="panel stack"><div class="panel-h"><h3>Training</h3><span class="small muted">Last week's work: <b>${cr.lastXP != null ? cr.lastXP : "–"}</b> (normal training ≈ 0.85)</span></div>
+  ${t ? `<div class="row"><span class="chip gold">${esc(t.n)}</span><span class="small muted">${esc(t.d)}</span></div>` : `<div class="moment"><b>Choose your playstyle trait</b><div class="traits" style="margin-top:8px">${traitsFor(p.pos).map(([k, x]) => `<button class="trait" data-a="pickTrait" data-v="${k}"><b>${esc(x.n)}</b><span class="small muted">${esc(x.d)}</span></button>`).join("")}</div></div>`}
+  <div><div class="small muted" style="margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Intensity</div><div class="seg">${INTENSITY.map((x, i) => `<button class="${plan.int === i ? "on" : ""}" data-a="trainInt" data-v="${i}">${x.n}</button>`).join("")}</div> <span class="small muted">${esc(INTENSITY[plan.int].d)}</span></div>
+  <div><div class="small muted" style="margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Extra sessions (each uses one free-time slot)</div><div class="row" style="gap:6px">${sess.map((s) => `<button class="btn sm ${plan.extra.includes(s.id) ? "pri" : ""}" data-a="trainSess" data-v="${s.id}">${esc(s.n)}</button>`).join("")}</div></div>
+  <div><div class="small muted" style="margin-bottom:4px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Main focus</div><div class="seg">${attrs.map((i) => `<button class="${cr.tf === i ? "on" : ""}" data-a="train" data-v="${i}">${ATTRS[i]}</button>`).join("")}</div></div>
+  <div class="small"><b>Potential ${p.pot} ${tr.arrow}</b> <span class="muted">${esc(tr.text)}</span></div>
+  <p class="small muted" style="margin:0">Nothing comes for free. Your growth depends on training intensity, extra sessions, match minutes and form. Your potential is reviewed every month: hard work, regular football and a settled life push it up; laziness, nights out, no minutes and long injuries pull it down.</p></div>`;
+}
 function legacyPanel() {
   const L = G.career.life, all = L.kids.map((k, i) => ({ ...k, i })), sons = all.filter((k) => k.g === "boy" && k.fb);
   const others = all.filter((k) => !(k.g === "boy" && k.fb));
@@ -614,7 +626,7 @@ PAGES.life = () => {
   <div class="panel" style="margin-bottom:16px"><div class="kpis"><div class="kpi"><b>${money(L.cash)}</b><span>Bank balance</span></div><div class="kpi"><b>${money(income)}</b><span>Take-home / wk</span></div><div class="kpi"><b>${money(upkeep)}</b><span>Upkeep / wk</span></div><div class="kpi"><b>${L.happy}</b><span>Happiness</span></div><div class="kpi"><b>${Math.round(L.fame)}</b><span>Fame</span></div></div>
   <div class="meter" style="margin-top:12px"><span class="small muted" style="width:76px">Happiness</span><div class="bar"><i style="width:${L.happy}%;background:${L.happy < 40 ? "var(--loss)" : L.happy < 60 ? "var(--warn)" : "var(--win)"}"></i></div></div>
   <p class="small muted" style="margin:8px 0 0">You keep 55% of your wage after tax, minus your agent's cut, plus your boot deal. Happiness feeds your morale on the pitch, and fame makes it easier to meet people. Each life action uses some of your free time, which resets every week.</p></div>
-  <div class="grid g2" style="margin-bottom:16px"><div class="panel stack"><h3>Love life</h3><div><b>${esc(statusText)}</b>${L.partner && L.status !== "married" ? `<div class="meter" style="margin-top:6px"><span class="small muted" style="width:76px">Relationship</span><div class="bar"><i style="width:${L.rel}%"></i></div></div>` : ""}
+  <div class="grid g2" style="margin-bottom:16px"><div class="panel stack"><h3>Love life</h3><div><b>${esc(statusText)}</b>${L.partner && personalityOf(L) ? `<div class="small" style="margin-top:4px"><span class="chip">${esc(personalityOf(L).n)}</span> <span class="muted">${esc(personalityOf(L).d)}</span></div>` : ""}${L.partner && L.status !== "married" ? `<div class="meter" style="margin-top:6px"><span class="small muted" style="width:76px">Relationship</span><div class="bar"><i style="width:${L.rel}%"></i></div></div>` : ""}
     ${L.partner ? `<div class="meter" style="margin-top:6px"><span class="small muted" style="width:76px">Her mood</span><div class="bar"><i style="width:${L.pm}%;background:${L.pm < 35 ? "var(--loss)" : L.pm < 55 ? "var(--warn)" : "var(--win)"}"></i></div><b class="small">${moodWord(L.pm)}</b></div>${L.pmWhy ? `<div class="small muted" style="margin-top:4px">${esc(L.pmWhy)}</div>` : ""}` : ""}${L.due != null ? `<div class="small" style="margin-top:6px">A baby is on the way.</div>` : ""}</div>
     <div class="row">${DATES.map(([k, l, c]) => act("date", l, k, money(c))).join("")}</div>
     <div class="row">${L.status === "dating" ? act("propose", "Propose", "", "ring €30K") : ""}${L.status === "engaged" ? act("wedding", "Small wedding", "small", "€90K") + act("wedding", "Big wedding", "big", "€900K") : ""}${L.status === "married" ? act("baby", "Try for a baby") + act("family", "Family day") : ""}${L.status === "dating" || L.status === "engaged" ? `<button class="btn danger" data-a="life" data-k="breakup">Break up</button>` : ""}</div>
@@ -819,6 +831,7 @@ function runTimer() {
   L.timer = setInterval(() => {
     const m = L.m;
     const evs = stepMatch(m);
+    trackerStep(L, evs);
     L.mom.push(0.5 + (m.possShare - 0.5) * 0.8 + (rnd() - 0.5) * 0.55 + evs.reduce((a, e) => a + (["goal", "save", "miss", "block"].includes(e.t) ? (e.s === 0 ? 0.3 : -0.3) : 0), 0));
     if (m.pending) { clearInterval(L.timer); renderLive(true); return; }
     if (m.done || m.phase === "HT" || m.phase === "ETB" || evs.some((e) => e.t === "inj" && m.sides[e.s].user)) { clearInterval(L.timer); if (evs.some((e) => e.t === "inj" && m.sides[e.s].user)) L.paused = true; }
@@ -878,6 +891,45 @@ function lvControls(L) {
     <button class="btn" data-a="lvSub" ${side.subs >= side.maxSubs ? "disabled" : ""}>Make substitution</button></div>`;
 }
 const MOMENT_STAT = { pen: [1, "Finishing"], fk: [1, "Shooting"], oneone: [1, "Finishing"], edge: [1, "Shooting"], counter: [2, "Passing"], tackle: [4, "Defending"], header: [5, "Physical"], gkpen: [6, "Goalkeeping"], gk1v1: [6, "Goalkeeping"] };
+function adBoard() {
+  const extra = [];
+  if (UI.live) { const h = club(UI.live.m.f.h); extra.push({ t: `WELCOME TO ${h.name.toUpperCase()}`, bg: h.c1, fg: lum(h.c1) > 0.6 ? "#111" : "#fff" }); }
+  if (G.mode === "career" && G.career && G.career.life && G.career.life.spons) { const b = BRAND_BY[G.career.life.spons.brand]; extra.push({ t: b.n, bg: b.bg, fg: b.fg }); }
+  const list = PITCH_ADS.concat(extra);
+  const one = list.map((a) => `<span class="adb" style="background:${a.bg};color:${a.fg}">${esc(a.t)}</span>`).join("");
+  return `<div class="ads"><div class="ads-run">${one}${one}</div></div>`;
+}
+function trackerStep(L, evs) {
+  const m = L.m, T = (L.tr = L.tr || { x: 50, y: 50, s: 0, label: "Kick-off", shots: [] });
+  const tn = (s) => club(m.sides[s].cid).short;
+  const shot = evs.find((e) => ["goal", "save", "miss", "block"].includes(e.t)) || evs.find((e) => e.t === "mom");
+  if (shot && shot.t !== "mom") {
+    const s = shot.s, sx = s === 0 ? ri(76, 90) : ri(10, 24), sy = ri(26, 74);
+    T.s = s; T.shots.push({ x: sx, y: sy, s, t: shot.t });
+    if (T.shots.length > 40) T.shots.shift();
+    if (shot.t === "goal") { T.x = s === 0 ? 98.5 : 1.5; T.y = ri(44, 56); T.label = `GOAL! ${tn(s)}`; }
+    else { T.x = sx; T.y = sy; T.label = shot.t === "save" ? `Shot saved · ${tn(s)}` : shot.t === "block" ? `Shot blocked · ${tn(s)}` : `Shot wide · ${tn(s)}`; }
+    return;
+  }
+  const other = evs.find((e) => ["yc", "rc", "inj", "sub"].includes(e.t));
+  const s = rnd() < m.possShare ? 0 : 1;
+  const dir = s === 0 ? 1 : -1;
+  if (s !== T.s) { T.x = s === 0 ? ri(30, 50) : ri(50, 70); T.s = s; }
+  else T.x = clamp(T.x + dir * ri(4, 16) * (rnd() < 0.25 ? -1 : 1), 6, 94);
+  T.y = clamp(T.y + ri(-22, 22), 10, 90);
+  const prog = s === 0 ? T.x : 100 - T.x;
+  T.label = other ? { yc: "Yellow card", rc: "Red card", inj: "Injury", sub: "Substitution" }[other.t] + ` · ${tn(other.s)}` : prog > 72 ? `Dangerous attack · ${tn(s)}` : prog > 45 ? `Attack · ${tn(s)}` : `Ball safe · ${tn(s)}`;
+}
+function trackerInner(L) {
+  const T = L.tr || { x: 50, y: 50, s: 0, label: "Kick-off", shots: [] }, m = L.m;
+  const col = (s) => { const c = club(m.sides[s].cid); return lum(c.c1) > 0.85 ? c.c2 : c.c1; };
+  const zone = T.label.startsWith("Dangerous") ? `<div class="tzone" style="${T.s === 0 ? "right" : "left"}:0;background:linear-gradient(${T.s === 0 ? "90deg" : "270deg"}, transparent, ${col(T.s)}66)"></div>` : "";
+  const shots = T.shots.map((x) => `<i class="tshot ${x.t}" style="left:${x.x}%;top:${x.y}%;background:${x.t === "goal" ? col(x.s) : "transparent"};border-color:${col(x.s)}"></i>`).join("");
+  return `${zone}${shots}<div class="tball" style="left:${T.x}%;top:${T.y}%"></div><div class="tlabel ${T.label.startsWith("GOAL") ? "goal" : ""}">${esc(T.label)}</div>`;
+}
+function trackerHTML(L) {
+  return `<div class="tracker">${adBoard()}<div class="tpitch"><svg class="lines" viewBox="0 0 105 68" preserveAspectRatio="none" aria-hidden="true"><g fill="none" stroke="var(--pitch-line)" stroke-width=".4"><rect x="1" y="1" width="103" height="66"/><line x1="52.5" y1="1" x2="52.5" y2="67"/><circle cx="52.5" cy="34" r="9"/><rect x="1" y="14" width="16" height="40"/><rect x="88" y="14" width="16" height="40"/><rect x="1" y="25" width="5.5" height="18"/><rect x="98.5" y="25" width="5.5" height="18"/></g></svg><div id="lv-track">${trackerInner(L)}</div></div>${adBoard()}</div>`;
+}
 function lvMoment(L) {
   const m = L.m, mo = m.pending;
   if (mo) {
@@ -896,6 +948,7 @@ MODALS.live = () => {
   <div class="modal-b stack">
     <div class="row" style="justify-content:space-between" id="lv-btns">${P.btns}</div>
     <div id="lv-moment">${lvMoment(L)}</div>
+    ${trackerHTML(L)}
     <div class="momentum" aria-label="Momentum" id="lv-mom">${P.mom}</div>
     <div class="grid g21"><div class="stack"><div class="panel"><div class="feed" id="lv-feed">${P.feed}</div></div>
     <div class="panel" id="lv-stats">${P.stats}</div></div>
@@ -907,6 +960,7 @@ function renderLive(full) {
   const root = document.getElementById("lv-root");
   if (full || !root || L.renderedPhase !== L.m.phase) { renderModal(); return; }
   const P = lvParts(L);
+  const tk = document.getElementById("lv-track"); if (tk) tk.innerHTML = trackerInner(L);
   for (const k of ["score", "btns", "mom", "feed", "stats", "lu0", "lu1"]) { const el = document.getElementById("lv-" + k); if (el) el.innerHTML = P[k]; }
   const ctl = document.getElementById("lv-ctl");
   const active = document.activeElement;
@@ -993,6 +1047,9 @@ A.legacySkip = (el) => {
   setTimeout(() => { try { for (let k = 0; k < n; k++) fastSeason(); } catch (e) { console.error(e); } busy(false); render(); autosave(); toast(`${kid.name} is now 16.`); }, 40);
 };
 A.legacyStart = (el) => { startLegacy(+el.dataset.i); faceCache.clear(); UI.page = "career"; render(); autosave(); };
+A.trainInt = (el) => { toast(setIntensity(+el.dataset.v)); render(); autosave(); };
+A.trainSess = (el) => { toast(toggleSession(el.dataset.v)); render(); autosave(); };
+A.pickTrait = (el) => { G.career.trait = el.dataset.v; toast(`You're a ${TRAITS[el.dataset.v].n.toLowerCase()}.`); render(); autosave(); };
 A.train = (el) => { G.career.tf = +el.dataset.v; render(); };
 A.creq = (el) => { toast(careerRequest(el.dataset.v)); render(); };
 A.retireAsk = () => openModal("confirm", { title: "Retire from football?", text: "Your career ends here. The save stays so you can look back at your record.", yes: "Retire", danger: true, then: () => { retireUser(); render(); autosave(); } });
@@ -1058,7 +1115,7 @@ A.beginCareer = () => {
   setTimeout(() => {
     let cid = 0; for (const l of LEAGUE_DATA) { if (l.id === lid) { cid += +idx; break; } cid += l.clubs.trim().split("\n").length; }
     const t = TALENTS[cp.tal];
-    newWorld({ mode: "career", real: st.real !== false, clubId: cid, saveName: st.saveName || `${cp.fn} ${cp.ln}`.trim(), player: { fn: cp.fn.trim(), ln: cp.ln.trim(), nat: cp.nat, pos: cp.pos, foot: cp.foot, age: cp.age, ovr: t[1] - (18 - cp.age), pot: t[2], face: cp.face.slice(), ph: cp.ph } });
+    newWorld({ mode: "career", real: st.real !== false, clubId: cid, saveName: st.saveName || `${cp.fn} ${cp.ln}`.trim(), player: { trait: cp.trait, fn: cp.fn.trim(), ln: cp.ln.trim(), nat: cp.nat, pos: cp.pos, foot: cp.foot, age: cp.age, ovr: t[1] - (18 - cp.age), pot: t[2], face: cp.face.slice(), ph: cp.ph } });
     afterNewGame();
   }, 30);
 };
@@ -1291,7 +1348,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610140419";
+const BUILD = "202610141642";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;

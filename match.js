@@ -93,7 +93,8 @@ function resolveMoment(m, choice) {
   const say = (txt, good) => { addEv(m, { t: "mom", s, p: mo.pid, txt, good }); return { txt, good }; };
   const rate = (d) => { m.rt[mo.pid] = (m.rt[mo.pid] || 6.4) + d; };
   const keeperSide = () => wpick([["left", 0.42], ["middle", 0.16], ["right", 0.42]]);
-  const P = (x) => rnd() < clamp(x, 0.02, 0.97);
+  const tb = typeof traitBonus === "function" && mo.pid === G.userPlayer ? traitBonus(mo.type, choice) : 0;
+  const P = (x) => rnd() < clamp(x + tb - 0.03, 0.02, 0.97);
   switch (mo.type) {
     case "pen": {
       const k = keeperSide();
@@ -234,7 +235,7 @@ function stepMatch(m) {
   // a decision for the user's player
   if (m.inter && !m.pending && m.moments < 4 && (m.phase === "1H" || m.phase === "2H" || m.phase === "ET")) {
     const s = m.sideOf[m.inter], o = s != null ? m.sides[s].on.find((x) => x.pid === m.inter) : null;
-    if (o) { const g = POS_GROUP[o.pos]; const per90 = g === "ATT" ? 1.7 : g === "MID" ? 1.4 : 1.15; if (rnd() < per90 / 90) m.pending = makeMoment(m, s, o); }
+    if (o) { const g = POS_GROUP[o.pos]; const per90 = g === "ATT" ? 1.5 : g === "MID" ? 1.25 : 1.0; if (rnd() < per90 / 90) m.pending = makeMoment(m, s, o); }
   }
   // AI substitutions
   for (let s = 0; s < 2; s++) {

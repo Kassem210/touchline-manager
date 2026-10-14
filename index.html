@@ -248,6 +248,23 @@ table.t td.c, table.t th.c { text-align: center; }
 .bub { max-width: 78%; align-self: flex-start; background: var(--panel2); border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; padding: 8px 12px; overflow-wrap: anywhere; }
 .bub.me { align-self: flex-end; background: var(--accent); color: var(--accent-ink); border-color: transparent; border-radius: 14px 14px 4px 14px; }
 .bub span { display: block; font-size: 10px; opacity: .7; margin-top: 3px; }
+.traits { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.trait { display: flex; flex-direction: column; gap: 3px; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); cursor: pointer; }
+.trait:hover, .trait.on { border-color: var(--accent); background: var(--panel2); }
+.tracker { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #10301f; }
+.ads { overflow: hidden; white-space: nowrap; background: #0b0f0d; padding: 3px 0; }
+.ads-run { display: inline-flex; gap: 4px; animation: adsrun 38s linear infinite; }
+.adb { display: inline-block; font-family: var(--f-display); font-weight: 800; font-size: 12px; letter-spacing: .08em; padding: 3px 14px; border-radius: 2px; }
+@keyframes adsrun { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.tpitch { position: relative; aspect-ratio: 105/58; max-height: 300px; width: 100%; background: repeating-linear-gradient(90deg, #2f7d4b 0 10%, #2a7245 10% 20%); }
+.tpitch .lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tpitch .lines g { stroke: rgba(255,255,255,.55); }
+.tball { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.25), 0 1px 3px rgba(0,0,0,.5); transition: left .45s ease, top .45s ease; }
+.tshot { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; border: 2px solid; opacity: .85; }
+.tshot.miss, .tshot.block { border-style: dashed; opacity: .6; }
+.tzone { position: absolute; top: 0; bottom: 0; width: 30%; pointer-events: none; }
+.tlabel { position: absolute; left: 50%; top: 8px; transform: translateX(-50%); background: rgba(0,0,0,.6); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 99px; white-space: nowrap; }
+.tlabel.goal { background: #f2c230; color: #111; font-family: var(--f-display); font-size: 15px; letter-spacing: .06em; }
 .kid { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .kid:last-child { border-bottom: 0; }
 .lvl { color: var(--accent); letter-spacing: 1px; font-size: 11px; margin-left: 6px; }
@@ -256,13 +273,15 @@ table.t td.c, table.t th.c { text-align: center; }
 </head>
 <body>
 <div id="app"><div class="loading">Loading Touchline…</div></div>
-<script src="data.js?v=202610140419"></script>
-<script src="real.js?v=202610140419"></script>
-<script src="engine.js?v=202610140419"></script>
-<script src="world.js?v=202610140419"></script>
-<script src="events.js?v=202610140419"></script>
-<script src="online.js?v=202610140419"></script>
-<script src="match.js?v=202610140419"></script>
-<script src="ui.js?v=202610140419"></script>
+<script src="data.js?v=202610141642"></script>
+<script src="real.js?v=202610141642"></script>
+<script src="engine.js?v=202610141642"></script>
+<script src="world.js?v=202610141642"></script>
+<script src="progress.js?v=202610141642"></script>
+<script src="ads.js?v=202610141642"></script>
+<script src="events.js?v=202610141642"></script>
+<script src="online.js?v=202610141642"></script>
+<script src="match.js?v=202610141642"></script>
+<script src="ui.js?v=202610141642"></script>
 </body>
 </html>

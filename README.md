@@ -15,6 +15,8 @@ No build step and no server: it's plain HTML and JavaScript. Saves are stored in
 | `real.js` | Optional real-player pack (2025/26 squads, approximate ratings) |
 | `world.js` | National teams, tournaments, facilities, player life, legacy |
 | `online.js` | Friends and chat over Firebase (the Phone page) |
+| `progress.js` | Playstyle traits, weekly training, potential that rises and falls, partner personalities |
+| `ads.js` | Pitch-side advertising boards in the live match tracker (edit to add your own sponsors) |
 | `events.js` | Random events with choices, children's schools and football training |
 | `engine.js` | World generation, calendar, competitions, transfers, seasons |
 | `match.js` | Match engine (quick sim and live) |
