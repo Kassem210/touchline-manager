@@ -194,7 +194,7 @@ function newWorld(opts) {
     G.userClub = customId != null ? customId : opts.clubId;
     const uc = club(G.userClub); uc.form = "4-3-3"; uc.auto = true; autoLineup(uc, true);
   } else {
-    G.career = { tf: 2, trophies: [], awards: [], started: G.season, caps: 0, req: null, offers: [], life: newLife(), called: false, trait: opts.player.trait || null, train: { int: 1, extra: [] } };
+    G.career = { tf: 2, trophies: [], awards: [], started: G.season, caps: 0, req: null, offers: [], life: newLife(), called: false, trait: opts.player.trait || null, eq: !!opts.player.eq, train: { int: 1, extra: [] } };
     const cp = opts.player, c = club(opts.clubId);
     const p = genPlayer({ pos: cp.pos, ovr: cp.ovr, ag: cp.age, nat: cp.nat, cid: c.id, pot: cp.pot, names: [cp.fn, cp.ln] });
     if (cp.face) p.face = cp.face; if (cp.ph) p.ph = cp.ph; p.foot = cp.foot || p.foot;

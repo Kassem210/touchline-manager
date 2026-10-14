@@ -112,7 +112,9 @@ function reviewPotential(p, T) {
   if (ag >= 26) s -= 0.4;
   let d = 0;
   if (C.pot0 == null) C.pot0 = p.pot;
-  if (s > 1 && rnd() < 0.45 && p.pot < C.pot0 + 7) d = s > 2.6 && rnd() < 0.3 ? 2 : 1;
+  // Equal-start careers can climb to world class, but the top end gets harder to reach.
+  const cap = C.eq ? 94 : C.pot0 + 7, odds = C.eq && p.pot >= 86 ? 0.25 : 0.45;
+  if (s > 1 && rnd() < odds && p.pot < cap) d = s > 2.6 && rnd() < 0.3 ? 2 : 1;
   else if (s < -0.8 && rnd() < 0.6) d = s < -2 ? -2 : -1;
   if (d) {
     p.pot = clamp(Math.max(p.o, p.pot + d), 30, 96);

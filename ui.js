@@ -223,13 +223,14 @@ function startCustom() {
   <p class="small muted">The first eleven are your starters; the rest are squad players and academy prospects.</p></div>
   <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn pri go" data-a="beginCustom">Found the club</button></div></div>`;
 }
-const TALENTS = [["Prospect", 51, 80], ["Talent", 54, 86], ["Wonderkid", 57, 92]];
+// Everyone starts equal: same rating and ceiling. Potential only grows through work (see reviewPotential).
+const START_OVR = 54, START_POT = 78;
 function startCareer() {
   const st = UI.start;
   if (!st.cp) st.cp = { fn: "", ln: "", nat: "EGY", pos: "ST", foot: "R", age: 17, tal: 1, face: genFace("EGY", 17), ph: null, lg: "EGY1" };
   const cp = st.cp;
   const clubs = clubsOfLeagueData(cp.lg).filter((c) => c.rep <= 74).sort((a, b) => b.rep - a.rep);
-  const myO = TALENTS[cp.tal][1] - (18 - cp.age);
+  const myO = START_OVR - (18 - cp.age);
   const role = (rep) => (rep - myO <= 5 ? "Likely starter" : rep - myO <= 10 ? "Squad player" : "Youth team");
   const opt = (k, arr, cur) => arr.map(([v, l]) => `<button class="${cur === v ? "on" : ""}" data-a="cpSet" data-k="${k}" data-v="${v}">${l}</button>`).join("");
   const f = cp.face;
@@ -241,7 +242,7 @@ function startCareer() {
     <div class="row"><span class="small muted" style="width:72px">Position</span><div class="seg">${opt("pos", POSITIONS.map((p) => [p, p]), cp.pos)}</div></div>
     <div class="row"><span class="small muted" style="width:72px">Foot</span><div class="seg">${opt("foot", [["R", "Right"], ["L", "Left"]], cp.foot)}</div>
     <span class="small muted" style="margin-left:12px">Age</span><div class="seg">${opt("age", [[16, "16"], [17, "17"], [18, "18"]], cp.age)}</div></div>
-    <div class="row"><span class="small muted" style="width:72px">Talent</span><div class="seg">${opt("tal", TALENTS.map((t, i) => [i, t[0]]), cp.tal)}</div><span class="small muted">Talent is only a starting point. How good you become depends on how you train and live.</span></div>
+    <p class="small muted" style="margin:0">Every player starts equal. How good you become depends only on how you train, play and live.</p>
     <div><h4 style="margin:6px 0 8px">Playstyle trait</h4><div class="traits">${traitsFor(cp.pos).map(([k, t]) => `<button class="trait ${cp.trait === k ? "on" : ""}" data-a="cpSet" data-k="trait" data-v="${k}"><b>${esc(t.n)}</b><span class="small muted">${esc(t.d)}</span></button>`).join("")}</div></div>
     <div class="row"><label class="f" style="flex:1;min-width:220px">Start in<select data-c="cpField" data-k="lg">${leagueOptions(cp.lg)}</select></label><label class="f" style="flex:1;min-width:160px">Save name<input type="text" id="saveName3" value="${esc(st.saveName || "")}" data-c="startField" data-k="saveName"></label></div><label class="row small" style="gap:8px;align-items:flex-start;max-width:520px"><input type="checkbox" id="realToggle" ${UI.start.real !== false ? "checked" : ""} data-c="startReal" style="margin-top:3px"><span><b>Real players</b><br><span class="muted">${Object.values(REAL_PLAYERS).reduce((s, x) => s + x.trim().split("\n").length, 0)} real players at 60+ clubs, using 2025/26 squads and approximate ratings. Everyone else is generated. Untick for an all-fictional world.</span></span></label>
     <div><h4 style="margin:6px 0 8px">Starting club</h4><div class="clublist">${clubs.map((c) => `<button class="clubpick ${cp.club === c.key ? "on" : ""}" data-a="cpClub" data-k="${c.key}">${crest(c, 26)}<span><b>${esc(c.name)}</b><br>${stars(c.rep)} <span class="small muted">${role(c.rep)}</span></span></button>`).join("") || `<div class="empty">No smaller clubs in this league. Try another.</div>`}</div></div>
@@ -1146,8 +1147,7 @@ A.beginCareer = () => {
   busy(true, "Signing your first contract…");
   setTimeout(() => {
     let cid = 0; for (const l of LEAGUE_DATA) { if (l.id === lid) { cid += +idx; break; } cid += l.clubs.trim().split("\n").length; }
-    const t = TALENTS[cp.tal];
-    newWorld({ mode: "career", real: st.real !== false, clubId: cid, saveName: st.saveName || `${cp.fn} ${cp.ln}`.trim(), player: { trait: cp.trait, fn: cp.fn.trim(), ln: cp.ln.trim(), nat: cp.nat, pos: cp.pos, foot: cp.foot, age: cp.age, ovr: t[1] - (18 - cp.age), pot: t[2], face: cp.face.slice(), ph: cp.ph } });
+    newWorld({ mode: "career", real: st.real !== false, clubId: cid, saveName: st.saveName || `${cp.fn} ${cp.ln}`.trim(), player: { trait: cp.trait, fn: cp.fn.trim(), ln: cp.ln.trim(), nat: cp.nat, pos: cp.pos, foot: cp.foot, age: cp.age, ovr: START_OVR - (18 - cp.age), pot: START_POT, eq: true, face: cp.face.slice(), ph: cp.ph } });
     afterNewGame();
   }, 30);
 };
@@ -1380,7 +1380,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610141712";
+const BUILD = "202610141745";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;
