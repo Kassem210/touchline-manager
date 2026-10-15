@@ -204,8 +204,25 @@ function socialExport() {
 // ---------- media accounts, transfers, news, memes ----------
 // The transfer journalist is a made-up character. Change the name here if you like.
 const JOURNALIST = { name: "Fabio Ramone", handle: "fabio.ramone" };
+// Fabio's own cartoon look: swept light hair, round glasses, a broadcast headset and a press pass.
+const JOURNALIST_SVG = `<svg viewBox="0 0 100 100" aria-hidden="true"><defs><linearGradient id="jbg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff3b3b"/><stop offset="1" stop-color="#8b0000"/></linearGradient></defs>
+<rect width="100" height="100" fill="url(#jbg)"/>
+<path d="M14 100 Q16 74 50 70 Q84 74 86 100Z" fill="#1f2a44"/><path d="M42 72 L50 86 L58 72Z" fill="#fff"/><path d="M47 76 L50 92 L53 76Z" fill="#c1121f"/>
+<rect x="60" y="80" width="14" height="16" rx="2" fill="#fff"/><rect x="62" y="83" width="10" height="3" fill="#c1121f"/><rect x="62" y="88" width="8" height="1.6" fill="#888"/><path d="M50 70 L64 81" stroke="#c1121f" stroke-width="1.6"/>
+<rect x="44" y="60" width="12" height="12" fill="#e2b48f"/>
+<ellipse cx="50" cy="44" rx="20" ry="23" fill="#f0c6a0"/>
+<path d="M29 42 Q28 18 50 17 Q74 16 72 40 Q70 30 60 27 Q66 22 54 22 Q42 22 36 30 Q31 34 29 42Z" fill="#9c7034" stroke="#6b4a1e" stroke-width=".8"/><path d="M40 20 Q56 10 72 24 Q60 17 46 21Z" fill="#c4964f"/>
+<circle cx="41.5" cy="45" r="6.4" fill="#ffffff55" stroke="#111" stroke-width="1.8"/><circle cx="58.5" cy="45" r="6.4" fill="#ffffff55" stroke="#111" stroke-width="1.8"/><path d="M47.9 45 H52.1" stroke="#111" stroke-width="1.8"/>
+<circle cx="41.5" cy="45.5" r="1.8" fill="#222"/><circle cx="58.5" cy="45.5" r="1.8" fill="#222"/>
+<path d="M36 37 Q41 34.5 46 37 M54 37 Q59 34.5 64 37" stroke="#8a6a3a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+<path d="M50 48 Q48.5 53 50.5 54" stroke="#c99a74" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+<path d="M42 58 Q50 64 58 58" stroke="#7a2e2e" stroke-width="2" fill="#fff" stroke-linecap="round"/>
+<path d="M27 46 Q26 14 50 13 Q74 14 73 46" stroke="#222" stroke-width="3.4" fill="none"/>
+<rect x="22" y="40" width="9" height="15" rx="4" fill="#222"/><rect x="69" y="40" width="9" height="15" rx="4" fill="#222"/>
+<path d="M27 54 Q30 64 40 63" stroke="#222" stroke-width="2" fill="none"/><ellipse cx="41.5" cy="62.8" rx="3" ry="2.2" fill="#111"/>
+</svg>`;
 const ACCOUNTS = {
-  jour: { h: JOURNALIST.handle, n: JOURNALIST.name, av: "🚨", sub: "Transfer news · Here we go!", v: true },
+  jour: { h: JOURNALIST.handle, n: JOURNALIST.name, av: "🚨", svg: JOURNALIST_SVG, sub: "Transfer news · Here we go!", v: true },
   news: { h: "kora.news", n: "Kora News", av: "📰", sub: "Football news", v: true },
   stats: { h: "kora.stats", n: "Kora Stats", av: "📊", sub: "Numbers & records", v: true },
   memes: { h: "kora.memes", n: "Kora Memes", av: "😂", sub: "Football memes", v: false },

@@ -563,7 +563,7 @@ PAGES.club = () => {
 function igWho(x) {
   const me = pl(G.userPlayer), L = G.career.life;
   if (x.by === "me") return { h: handleOf(me), av: faceHTML(me, 34), sub: me.club >= 0 ? club(me.club).name : "Free agent", v: G.career.life.fame >= 40, p: me };
-  if (typeof x.by === "string" && x.by.startsWith("acc:")) { const a = ACCOUNTS[x.by.slice(4)]; return { h: a.h, av: `<span class="igav">${a.av}</span>`, sub: a.sub, v: a.v, acc: x.by.slice(4) }; }
+  if (typeof x.by === "string" && x.by.startsWith("acc:")) { const a = ACCOUNTS[x.by.slice(4)]; return { h: a.h, av: a.svg ? `<span class="face" style="width:34px;height:34px">${a.svg}</span>` : `<span class="igav">${a.av}</span>`, sub: a.sub, v: a.v, acc: x.by.slice(4) }; }
   if (x.by === "partner") return { h: handleName(x.pname || L.partner || "partner"), av: `<span class="igav">💕</span>`, sub: "Your partner", v: false };
   if (typeof x.by === "string" && x.by.startsWith("club:")) { const c = club(+x.by.slice(5)); return { h: handleName(c.name), av: crest(c, 34), sub: "Official account", v: true, c }; }
   const q = pl(x.by);
@@ -621,6 +621,7 @@ function sceneSVG(x, w) {
       b += x.rumour ? `<g class="hwg-stamp${an}"><rect x="22" y="70" width="56" height="14" rx="2" fill="none" stroke="#ffd60a" stroke-width="1.6" transform="rotate(-4 50 77)"/>${T_("EXCLUSIVE", 50, 81, 10, "#ffd60a", 'transform="rotate(-4 50 77)"')}</g>`
         : `<g class="hwg-stamp${an}"><rect x="16" y="68" width="68" height="18" rx="2" fill="none" stroke="#ff2d2d" stroke-width="2" transform="rotate(-6 50 77)"/>${T_("HERE WE GO!", 50, 82, 13, "#ff2d2d", 'transform="rotate(-6 50 77)"')}</g>`;
       if (x.pn) b += T_(String(x.pn).toUpperCase(), 50, 22, 8, "#fff");
+      if (x.by === "acc:jour") b += `<defs><clipPath id="jc${x.id}"><circle cx="88" cy="88" r="9"/></clipPath></defs><circle cx="88" cy="88" r="10" fill="#fff"/><g clip-path="url(#jc${x.id})">${svgAt(JOURNALIST_SVG, 79, 79, 18)}</g>`;
       break;
     }
     case "news": { const lines = wrapText(x.head || x.cap, 22, 4); b = `<rect width="100" height="100" fill="#f4f1ea"/><rect width="100" height="16" fill="#c1121f"/>${T_("BREAKING", 50, 11.5, 9, "#fff")}${lines.map((l, i) => `<text x="8" y="${32 + i * 13}" font-size="9.5" font-family="Georgia, serif" font-weight="700" fill="#111">${esc(l)}</text>`).join("")}<rect x="8" y="88" width="40" height="2" fill="#999"/><rect x="8" y="92" width="60" height="2" fill="#bbb"/>`; break; }
@@ -687,7 +688,7 @@ PAGES.kora = () => {
   const tabs = `<div class="seg">${[["feed", "Home"], ["friends", "Friends"], ["me", "Profile"]].map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-a="igTab" data-v="${k}">${l}</button>`).join("")}</div>`;
   const mates = me.club >= 0 ? squad(me.club).filter((q) => q.id !== me.id).sort((a, b) => b.o - a.o).slice(0, 6) : [];
   const story = (av, name, act = "", sel = "") => `<button class="igst" ${act}><span class="igring ${sel}">${av}</span><span class="small">${esc(name)}</span></button>`;
-  const stories = `<div class="igstories">${story(faceHTML(me, 54), "Your story", 'data-a="igNew"', "me")}${rivalOf() ? story(faceHTML(rivalOf(), 54), rivalOf().ln, `data-a="player" data-id="${rivalOf().id}"`, "rv") : ""}${L.partner ? story('<span class="igav big">💕</span>', L.partner) : ""}${mates.map((q) => story(faceHTML(q, 54), q.ln, `data-a="player" data-id="${q.id}"`)).join("")}</div>`;
+  const stories = `<div class="igstories">${story(faceHTML(me, 54), "Your story", 'data-a="igNew"', "me")}${story(`<span class="face" style="width:54px;height:54px">${JOURNALIST_SVG}</span>`, JOURNALIST.handle, 'data-a="igTab" data-v="feed"')}${rivalOf() ? story(faceHTML(rivalOf(), 54), rivalOf().ln, `data-a="player" data-id="${rivalOf().id}"`, "rv") : ""}${L.partner ? story('<span class="igav big">💕</span>', L.partner) : ""}${mates.map((q) => story(faceHTML(q, 54), q.ln, `data-a="player" data-id="${q.id}"`)).join("")}</div>`;
   let body;
   if (tab === "me") {
     const grid = S.posts.map((x) => `<div class="igthumb">${igImg(x, igWho(x))}<span class="small">♥ ${fmtK(x.likes)}</span></div>`).join("");
@@ -1050,7 +1051,7 @@ MODALS.igNew = () => {
 MODALS.hwg = (t) => {
   const to = club(t.to), from = t.from != null ? club(t.from) : null;
   return `<div class="scrim hwg" data-a="close"><div class="hwg-card" role="dialog" aria-modal="true" aria-label="Here we go">
-    <div class="hwg-siren">🚨</div>
+    <div class="hwg-head"><span class="hwg-siren">🚨</span><span class="hwg-jour">${JOURNALIST_SVG}</span><span class="hwg-siren">🚨</span></div>
     <div class="hwg-clubs"><span class="hwg-from">${from ? crest(from, 84) : "🆓"}</span><span class="hwg-arrow">➜</span><span class="hwg-to">${crest(to, 84)}</span></div>
     <div class="hwg-name">${esc(t.n)}</div>
     <div class="hwg-text">HERE WE GO!</div>
@@ -1714,7 +1715,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610151800";
+const BUILD = "202610151830";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;
