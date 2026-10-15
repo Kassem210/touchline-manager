@@ -80,6 +80,39 @@ main { padding: 20px 22px 60px; min-width: 0; }
 .cab { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .cabitem { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; padding: 12px 8px; border: 1px solid var(--line); border-radius: 10px; background: linear-gradient(180deg, color-mix(in srgb, var(--gold, #c9a227) 12%, transparent), transparent); }
 .cabicon { font-size: 2rem; line-height: 1; position: relative; }
+.ig { max-width: 520px; margin: 0 auto; }
+.igtop { display: flex; align-items: center; gap: 10px; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; }
+.iglogo { font-family: "Brush Script MT", "Segoe Script", cursive; font-size: 1.9rem; font-weight: 700; letter-spacing: .01em; }
+.igstories { display: flex; gap: 12px; overflow-x: auto; padding: 4px 2px 12px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+.igst { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: 0; padding: 0; cursor: pointer; color: inherit; min-width: 62px; }
+.igst .small { max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.igring { display: inline-flex; padding: 2px; border-radius: 50%; background: linear-gradient(45deg, #f9ce34, #ee2a7b, #6228d7); }
+.igring > * { border: 2px solid var(--panel); border-radius: 50%; }
+.igring.me { background: var(--line); } .igring.rv { background: linear-gradient(45deg, #c2392f, #7a1f1f); }
+.igav { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; background: var(--bg); font-size: 18px; }
+.igav.big { width: 54px; height: 54px; font-size: 26px; }
+.igp { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+.igh { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+.igv { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; border-radius: 50%; background: #3897f0; color: #fff; font-size: 9px; font-weight: 800; vertical-align: middle; }
+.igimg { position: relative; aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 0; }
+.igem { position: absolute; top: 10%; right: 9%; font-size: clamp(36px, 12vw, 64px); filter: drop-shadow(0 4px 8px rgba(0,0,0,.35)); }
+.igface { width: 56%; aspect-ratio: 1; border-radius: 50%; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,.35); background: #fff2; }
+.igface svg, .igface img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.igcrest { transform: scale(1.1); }
+.igsc { position: absolute; left: 50%; bottom: 8%; transform: translateX(-50%); background: rgba(0,0,0,.65); color: #fff; font-family: var(--f-display); font-weight: 800; font-size: 1.2rem; padding: 4px 14px; border-radius: 999px; white-space: nowrap; }
+.igact { display: flex; gap: 14px; padding: 8px 12px 2px; }
+.igact button { background: none; border: 0; font-size: 1.5rem; line-height: 1; cursor: pointer; color: var(--ink); padding: 0; }
+.iglike.on { color: #ed4956; }
+.igbody { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 4px; }
+.iglink { background: none; border: 0; padding: 0; color: var(--muted, #7d847f); cursor: pointer; text-align: left; font: inherit; font-size: .85rem; }
+.igprof { display: flex; gap: 18px; align-items: center; margin-bottom: 16px; }
+.igcounts { gap: 16px; margin: 6px 0; }
+.iggrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+.igthumb { position: relative; } .igthumb .igem { font-size: 22px; } .igthumb .igsc { font-size: .6rem; padding: 2px 6px; }
+.igthumb > .small { position: absolute; left: 6px; bottom: 4px; color: #fff; font-weight: 700; text-shadow: 0 1px 3px #000; }
+.igtiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+.igtile { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); cursor: pointer; color: inherit; text-align: center; }
+.igtile span:first-child { font-size: 1.6rem; } .igtile.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); } .igtile:disabled { opacity: .45; cursor: not-allowed; }
 .cabicon span { position: absolute; right: -18px; bottom: -2px; font-size: .8rem; font-weight: 800; }
 .btn.danger { color: var(--loss); }
 .btn.sm { padding: 4px 10px; font-size: 12px; }
@@ -284,17 +317,19 @@ table.t td.c, table.t th.c { text-align: center; }
 </head>
 <body>
 <div id="app"><div class="loading">Loading Touchline…</div></div>
-<script src="data.js?v=202610150230"></script>
-<script src="real.js?v=202610150230"></script>
-<script src="engine.js?v=202610150230"></script>
-<script src="world.js?v=202610150230"></script>
-<script src="progress.js?v=202610150230"></script>
-<script src="ads.js?v=202610150230"></script>
-<script src="career.js?v=202610150230"></script>
-<script src="events.js?v=202610150230"></script>
-<script src="drama.js?v=202610150230"></script>
-<script src="online.js?v=202610150230"></script>
-<script src="match.js?v=202610150230"></script>
-<script src="ui.js?v=202610150230"></script>
+<script src="data.js?v=202610150350"></script>
+<script src="real.js?v=202610150350"></script>
+<script src="engine.js?v=202610150350"></script>
+<script src="world.js?v=202610150350"></script>
+<script src="progress.js?v=202610150350"></script>
+<script src="ads.js?v=202610150350"></script>
+<script src="career.js?v=202610150350"></script>
+<script src="events.js?v=202610150350"></script>
+<script src="drama.js?v=202610150350"></script>
+<script src="invest.js?v=202610150350"></script>
+<script src="social.js?v=202610150350"></script>
+<script src="online.js?v=202610150350"></script>
+<script src="match.js?v=202610150350"></script>
+<script src="ui.js?v=202610150350"></script>
 </body>
 </html>

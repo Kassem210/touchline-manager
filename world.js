@@ -450,7 +450,7 @@ function seasonsUntil16(kid) { return Math.max(0, 16 - (G.season - kid.by)); }
 function fastSeason() {
   for (let w = 0; w < 44; w++) for (const id in G.players) develop(G.players[id]);
   for (const id in G.leagues) { const lg = G.leagues[id]; lg.clubs.forEach((c) => { const t = lg.table[c]; t[0] = (lg.clubs.length - 1) * 2; t[6] = Math.round(club(c).rep * 0.9 + randn() * 7); }); }
-  if (G.career && G.career.life) { const L = G.career.life; for (let w = 0; w < 44; w++) lifeWeekly(); L.ap = 3; }
+  if (G.career && G.career.life) { const L = G.career.life; for (let w = 0; w < 44; w++) { lifeWeekly(); investWeekly(); } L.ap = 3; }
   G.day = (G.seasonEnd || SEASON_END) + 1;
   endSeason();
 }

@@ -386,7 +386,7 @@ function dramaWeekly() {
 }
 function dramaAfterMatch(f, m) {
   if (G.mode === "career" && G.career) {
-    if (!f.nt) { rivalAfterMatch(f, m); recordsAfterMatch(f, m); }
+    if (!f.nt) { rivalAfterMatch(f, m); recordsAfterMatch(f, m); socialAfterMatch(f, m); }
     const p = pl(G.userPlayer), L = G.career.last;
     if (L && L.f === f.i && L.g >= 3 && !f.nt) G.career.hat = (G.career.hat || 0) + 1;
     if (m.big && p && m.bigRes) {

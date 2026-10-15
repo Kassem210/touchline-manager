@@ -100,6 +100,7 @@ const ICON = {
 ICON.phone = '<rect x="6" y="2.5" width="12" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 8h6M9 11.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>';
 ICON.life = '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>';
 ICON.cabinet = '<path d="M7 4h10v4a5 5 0 0 1-10 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+ICON.kora = '<rect x="3.5" y="3.5" width="17" height="17" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.2" cy="6.8" r="1.2" fill="currentColor"/>';
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
 
 // ---------- toast / modal ----------
@@ -135,7 +136,7 @@ function render() {
   const unread = G.inbox.filter((m) => !m.read).length;
   const nav = G.mode === "manager"
     ? [["home", "Home"], ["inbox", "Inbox"], ["squad", "Squad"], ["tactics", "Tactics"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["transfers", "Transfers"], ["club", "Club"], ["phone", "Phone"], ["sep"], ["saves", "Save & menu"]]
-    : [["home", "Home"], ["inbox", "Inbox"], ["career", "My career"], ["cabinet", "Cabinet"], ["life", "Life"], ["squad", "Squad"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["world", "Players"], ["phone", "Phone"], ["sep"], ["saves", "Save & menu"]];
+    : [["home", "Home"], ["inbox", "Inbox"], ["career", "My career"], ["cabinet", "Cabinet"], ["kora", "Kora"], ["life", "Life"], ["squad", "Squad"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["world", "Players"], ["phone", "Phone"], ["sep"], ["saves", "Save & menu"]];
   const today = userFxOn(G.day);
   const retiredLock = G.mode === "career" && G.career && G.career.retired && !G.career.pundit;
   const goLabel = retiredLock ? "Retired" : today && !today.p ? "Match day" : "Continue";
@@ -558,6 +559,75 @@ PAGES.club = () => {
   </div></div>`;
 };
 
+// ---------- Kora (social feed) ----------
+function igWho(x) {
+  const me = pl(G.userPlayer), L = G.career.life;
+  if (x.by === "me") return { h: handleOf(me), av: faceHTML(me, 34), sub: me.club >= 0 ? club(me.club).name : "Free agent", v: G.career.life.fame >= 40, p: me };
+  if (x.by === "partner") return { h: handleName(x.pname || L.partner || "partner"), av: `<span class="igav">💕</span>`, sub: "Your partner", v: false };
+  if (typeof x.by === "string" && x.by.startsWith("club:")) { const c = club(+x.by.slice(5)); return { h: handleName(c.name), av: crest(c, 34), sub: "Official account", v: true, c }; }
+  const q = pl(x.by);
+  const isRival = typeof rivalOf === "function" && rivalOf() && rivalOf().id === x.by;
+  return q ? { h: handleOf(q), av: faceHTML(q, 34), sub: isRival ? "Your rival" : q.club >= 0 ? club(q.club).name : "", v: q.o >= 78, p: q } : { h: "former.player", av: `<span class="igav">⚽</span>`, sub: "", v: false };
+}
+function igImg(x, w) {
+  const T = POST_TYPES[x.type] || POST_TYPES.training;
+  let center = "";
+  if (w && w.c) center = `<span class="igcrest">${crest(w.c, 110)}</span>`;
+  else if (w && w.p) center = `<span class="igface">${w.p.ph ? `<img src="${esc(w.p.ph)}" alt="">` : faceSVG(w.p.face, w.p.club >= 0 ? club(w.p.club).c1 : "#7d847f", w.p.club >= 0 ? club(w.p.club).c2 : "#fff")}</span>`;
+  else if (w && w.face) center = `<span class="igface">${faceSVG(w.face, w.c1 || "#7d847f", w.c2 || "#fff")}</span>`;
+  return `<div class="igimg" style="background:linear-gradient(135deg,${T.bg[0]},${T.bg[1]})" role="img" aria-label="${esc(T.n)}"><span class="igem">${T.em}</span>${center}${x.sc ? `<span class="igsc">${esc(x.sc)}</span>` : ""}</div>`;
+}
+const igAgo = (d) => { const n = absDay() - d; return n <= 0 ? "Today" : n < 7 ? `${n}d` : `${Math.floor(n / 7)}w`; };
+function igCard(x) {
+  const w = igWho(x), open = UI.igOpen && UI.igOpen[x.id];
+  const cms = open ? x.cm : x.cm.slice(0, 2);
+  return `<article class="igp"><header class="igh">${w.av}<div style="min-width:0"><b>${esc(w.h)}</b>${w.v ? ' <span class="igv" title="Verified">✓</span>' : ""}<div class="small muted">${esc(w.sub)}</div></div><span class="small muted" style="margin-left:auto">${igAgo(x.d)}</span></header>
+  ${igImg(x, w)}
+  <div class="igact"><button class="iglike ${x.liked ? "on" : ""}" data-a="igLike" data-id="${x.id}" aria-label="${x.liked ? "Unlike" : "Like"}">${x.liked ? "♥" : "♡"}</button><button data-a="igMore" data-id="${x.id}" aria-label="Comments">💬</button></div>
+  <div class="igbody"><b>${x.likes.toLocaleString()} likes</b><div><b>${esc(w.h)}</b> ${esc(x.cap)}</div>
+  ${x.ncm > 2 && !open ? `<button class="iglink" data-a="igMore" data-id="${x.id}">View all ${fmtK(x.ncm)} comments</button>` : ""}
+  ${cms.map((c) => `<div class="small"><b>${esc(c.u)}</b>${c.v ? ' <span class="igv">✓</span>' : ""} ${esc(c.t)}</div>`).join("")}</div></article>`;
+}
+function igFriendCards() {
+  const out = [];
+  for (const code of (G.online && G.online.friends) || []) {
+    const f = Online.profiles[code]; if (!f || !f.posts) continue;
+    f.posts.forEach((x, i) => out.push({ code, f, x, i }));
+  }
+  out.sort((a, b) => b.x.at - a.x.at);
+  return out.map(({ code, f, x, i }) => {
+    const T = POST_TYPES[x.t] || POST_TYPES.training, k = `${code}:${x.at}`, liked = UI.igFL && UI.igFL[k];
+    const h = handleName(f.name || code);
+    return `<article class="igp"><header class="igh"><span class="face" style="width:34px;height:34px">${f.face ? faceSVG(f.face, f.c1 || "#7d847f", f.c2 || "#fff") : "⚽"}</span><div><b>${esc(h)}</b> <span class="igv">✓</span><div class="small muted">${esc(f.club || "")} · your friend</div></div><span class="small muted" style="margin-left:auto">${new Date(x.at).toLocaleDateString([], { month: "short", day: "numeric" })}</span></header>
+    ${igImg({ type: x.t, sc: x.sc }, { face: f.face, c1: f.c1, c2: f.c2 })}
+    <div class="igact"><button class="iglike ${liked ? "on" : ""}" data-a="igFLike" data-v="${esc(code)}" data-k="${esc(k)}" data-c="${esc(String(x.c).slice(0, 60))}" aria-label="Like">${liked ? "♥" : "♡"}</button><button data-a="phoneOpen" data-v="${esc(code)}" aria-label="Message">💬</button></div>
+    <div class="igbody"><b>${(x.l || 0).toLocaleString()} likes</b><div><b>${esc(h)}</b> ${esc(x.c || "")}</div></div></article>`;
+  }).join("");
+}
+PAGES.kora = () => {
+  if (G.mode !== "career") return PAGES.home();
+  const S = soc(), me = pl(G.userPlayer), tab = UI.ig || "feed", L = G.career.life;
+  const tabs = `<div class="seg">${[["feed", "Home"], ["friends", "Friends"], ["me", "Profile"]].map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-a="igTab" data-v="${k}">${l}</button>`).join("")}</div>`;
+  const mates = me.club >= 0 ? squad(me.club).filter((q) => q.id !== me.id).sort((a, b) => b.o - a.o).slice(0, 6) : [];
+  const story = (av, name, act = "", sel = "") => `<button class="igst" ${act}><span class="igring ${sel}">${av}</span><span class="small">${esc(name)}</span></button>`;
+  const stories = `<div class="igstories">${story(faceHTML(me, 54), "Your story", 'data-a="igNew"', "me")}${rivalOf() ? story(faceHTML(rivalOf(), 54), rivalOf().ln, `data-a="player" data-id="${rivalOf().id}"`, "rv") : ""}${L.partner ? story('<span class="igav big">💕</span>', L.partner) : ""}${mates.map((q) => story(faceHTML(q, 54), q.ln, `data-a="player" data-id="${q.id}"`)).join("")}</div>`;
+  let body;
+  if (tab === "me") {
+    const grid = S.posts.map((x) => `<div class="igthumb">${igImg(x, igWho(x))}<span class="small">♥ ${fmtK(x.likes)}</span></div>`).join("");
+    body = `<div class="igprof"><span class="igring me">${faceHTML(me, 86)}</span><div><div class="row"><b style="font-size:1.15rem">${esc(handleOf(me))}</b>${L.fame >= 40 ? ' <span class="igv">✓</span>' : ""}</div>
+      <div class="row igcounts"><span><b>${S.posts.length}</b> posts</span><span><b>${fmtK(S.followers)}</b> followers</span><span><b>${180 + (me.id % 300)}</b> following</span></div>
+      <div class="small">${esc(fullName(me))} · ${esc(me.pos)}${me.club >= 0 ? ` · ${esc(club(me.club).name)}` : ""}</div></div></div>
+      ${grid ? `<div class="iggrid">${grid}</div>` : `<div class="empty">No posts yet. Tap <b>+ Post</b> to share your first one.</div>`}`;
+  } else if (tab === "friends") {
+    const fc = Online.available() && Online.state === "ready" ? igFriendCards() : "";
+    body = fc || `<div class="panel empty">${Online.available() ? "Your friends' posts show up here. Add friends on the Phone page, and ask them to post something." : "Friends' posts work on the website version of Touchline."}</div>`;
+  } else {
+    const feed = S.posts.concat(S.npc).sort((a, b) => b.d - a.d || b.id - a.id).slice(0, 30);
+    body = feed.length ? feed.map(igCard).join("") : `<div class="panel empty">Nothing here yet. Play a match or post something.</div>`;
+  }
+  return `<div class="ig"><div class="igtop"><b class="iglogo">Kora</b>${tabs}<button class="btn sm pri" data-a="igNew">+ Post</button></div>
+  ${tab === "feed" ? stories : ""}${UI.igRes ? `<div class="moment ${UI.igRes.good ? "good" : UI.igRes.bad ? "bad" : ""}" style="margin-bottom:12px">${UI.igRes.html}</div>` : ""}${body}</div>`;
+};
 PAGES.cabinet = () => {
   if (G.mode !== "career") return PAGES.home();
   const p = pl(G.userPlayer), cr = G.career, c = p.club >= 0 ? club(p.club) : null;
@@ -696,6 +766,19 @@ function legacyPanel() {
 }
 function attrRow(p, i) { const v = p.a[i]; return `<div class="attr"><span>${ATTRS[i]}</span><div class="bar"><i style="width:${v}%;background:${ovrBg(v)}"></i></div><span class="num r">${Math.round(v)}</span></div>`; }
 
+function investPanel(L) {
+  const own = L.inv || [];
+  const risk = (x) => (x.flex ? (x.id === "crypto" ? "Very high risk" : "Medium risk") : x.cat === "Property" ? "Low risk" : x.fail >= 0.05 ? "High risk" : "Medium risk");
+  const owned = own.map((h) => { const x = INVEST_BY[h.k], v = investValue(h), pl_ = v - h.paid; return `<div class="facrow"><div style="min-width:0"><b>${esc(x.n)}</b><div class="small muted">Worth ${money(v)} · <span style="color:${pl_ >= 0 ? "var(--win)" : "var(--loss)"}">${pl_ >= 0 ? "+" : "−"}${money(Math.abs(pl_))}</span>${x.flex ? "" : ` · ${h.wk >= 0 ? "+" : "−"}${money(Math.abs(h.wk || investIncome(h)))}/wk`}${x.cat === "Business" ? ` · ${h.perf >= 1.15 ? "booming" : h.perf >= 0.85 ? "steady" : h.perf >= 0.55 ? "struggling" : "losing money"}` : ""}</div></div><button class="btn sm" data-a="invSell" data-v="${h.k}">Sell</button></div>`; }).join("");
+  const market = INVESTS.map((x) => {
+    const has = own.some((h) => h.k === x.id);
+    if (x.flex) return `<div class="facrow"><div style="min-width:0"><b>${esc(x.n)}</b><div class="small muted">${esc(x.d)} ${risk(x)}.</div></div><div class="row" style="gap:4px">${[x.min, 250000, 1000000].map((a) => `<button class="btn sm" data-a="invBuy" data-v="${x.id}" data-n="${a}" ${L.cash >= a ? "" : "disabled"}>${money(a)}</button>`).join("")}</div></div>`;
+    if (has) return "";
+    return `<div class="facrow"><div style="min-width:0"><b>${esc(x.n)}</b><div class="small muted">${esc(x.d)} About ${money(x.inc)}/wk${x.summer ? " (mostly summer)" : ""}. ${risk(x)}.</div></div><button class="btn sm ${L.cash >= x.cost ? "pri" : ""}" data-a="invBuy" data-v="${x.id}" ${L.cash >= x.cost ? "" : "disabled"}>Buy · ${money(x.cost)}</button></div>`;
+  }).join("");
+  return `<div class="grid g2" style="margin-bottom:16px"><div class="panel"><div class="panel-h"><h3>Your investments</h3>${L.invWk ? `<span class="small" style="color:${L.invWk >= 0 ? "var(--win)" : "var(--loss)"}">${L.invWk >= 0 ? "+" : "−"}${money(Math.abs(L.invWk))} last week</span>` : ""}</div>${owned || `<div class="empty">You haven't invested in anything yet.</div>`}<p class="small muted" style="margin:8px 0 0">Businesses pay weekly but can boom, struggle or close. Property pays rent and grows slowly. Markets have no income: you profit when you sell.</p></div>
+  <div class="panel"><h3>Invest</h3><div class="stack" style="gap:8px">${market}</div></div></div>`;
+}
 PAGES.life = () => {
   if (G.mode !== "career") return PAGES.home();
   const L = G.career.life, p = pl(G.userPlayer);
@@ -718,6 +801,7 @@ PAGES.life = () => {
   <h4 style="margin-top:6px">Children</h4>${L.kids.length ? L.kids.map((k, i) => kidRow(k, i)).join("") : `<div class="small muted">No children yet. Not every child takes after you, but a son who trains from an early age can become a footballer and carry on your career when you retire.</div>`}</div></div>
   <div class="panel" style="margin-bottom:16px"><div class="panel-h"><h3>Boot deal</h3>${L.spons ? brandBadge(L.spons.brand) : ""}</div>${L.spons ? `<div class="small">${money(L.spons.wk)} a week (you keep 70% after tax) until the end of ${L.spons.until}/${(L.spons.until + 1) % 100}.</div>` : `<div class="small muted">No sponsor yet. Brands come calling as your rating and fame grow, and a good agent gets you bigger deals. Offers arrive in your inbox.</div>`}
   <div class="row" style="margin-top:10px">${BRANDS.map((b) => brandBadge(b.id)).join("")}</div></div>
+  ${investPanel(L)}
   <h3 style="margin-bottom:10px">Spend your money</h3><div class="grid g2">${shop}</div>`;
 };
 function chBubble(code, m) {
@@ -865,6 +949,21 @@ MODALS.msg = (m) => {
   return modalShell(`<div><h3>${esc(msg.t)}</h3><div class="small muted">${fmtDate(msg.d, { wd: true })} ${msg.s}</div></div>`, `<div class="stack"><p style="margin:0">${esc(msg.b)}</p>${act}${m.res ? `<div style="font-weight:600">${esc(m.res)}</div>` : ""}</div>`);
 };
 MODALS.confirm = (m) => modalShell(`<h3>${esc(m.title)}</h3>`, `<div class="stack"><p style="margin:0">${esc(m.text)}</p><div class="row" style="justify-content:flex-end"><button class="btn" data-a="close">Cancel</button><button class="btn ${m.danger ? "danger" : "pri"}" data-a="confirmYes">${esc(m.yes || "Confirm")}</button></div></div>`);
+MODALS.igNew = () => {
+  const t = UI.igType || "training", T = POST_TYPES[t];
+  const tiles = Object.entries(POST_TYPES).map(([k, x]) => { const why = postAllowed(k); return `<button class="igtile ${t === k ? "on" : ""}" data-a="igType" data-v="${k}" ${why ? "disabled" : ""} title="${esc(why)}"><span>${x.em}</span><b class="small">${esc(x.n)}</b>${why ? `<span class="small muted">${esc(why)}</span>` : ""}</button>`; }).join("");
+  const why = postAllowed(t);
+  let mood = 0; for (let i = 0; i < 6; i++) mood += postMood(t); mood /= 6;
+  const face = mood > 0.5 ? "😍 They'll probably love it" : mood > 0.1 ? "🙂 Probably fine" : mood > -0.3 ? "😐 Could go either way" : "😠 The fans won't like this right now";
+  const caps = captionsFor(t), cap = UI.igCap != null ? UI.igCap : caps[0];
+  return modalShell(`<div><h4>Kora</h4><h3>New post</h3></div>`, `<div class="stack">
+  <div class="igtiles">${tiles}</div>
+  <div class="grid g2" style="align-items:start"><div>${igImg({ type: t }, { p: pl(G.userPlayer) })}</div>
+  <div class="stack"><div class="small"><b>Fans' likely reaction:</b> ${face}</div>
+  <div class="stack" style="gap:6px">${caps.map((c) => `<label class="row small" style="gap:6px"><input type="radio" name="igcap" ${cap === c ? "checked" : ""} data-c="igCapPick" value="${esc(c)}">${esc(c)}</label>`).join("")}</div>
+  <label class="f">Caption<input type="text" id="igCap" maxlength="140" value="${esc(cap)}" data-c="igCapType"></label>
+  <button class="btn pri" data-a="igPost" ${why ? "disabled" : ""}>Share</button>${why ? `<span class="small muted">${esc(why)}</span>` : ""}</div></div></div>`, { wide: true });
+};
 MODALS.season = (m) => {
   const H = G.hist, last = (arr) => arr && arr[arr.length - 1];
   const prev = G.season - 1;
@@ -1191,6 +1290,21 @@ A.lvChoice = (el) => { const L = UI.live; if (!L || !L.m.pending) return; L.last
 A.lvSkip = () => { const L = UI.live; clearInterval(L.timer); const m = L.m; { let k = 0; while (m.pending && k++ < 5) resolveMoment(m, pick(MOMENTS[m.pending.type].o)[0]); } m.inter = null; m.sides.forEach((s) => (s.user = false)); m.live = false; let g = 0; while (!m.done && g++ < 400) { if (m.phase === "HT" || m.phase === "ETB") resumeMatch(m); stepMatch(m); } renderLive(); };
 A.lvFinish = () => { const m = UI.live.m; clearInterval(UI.live.timer); UI.live = null; UI.modal = null; renderModal(); afterUserMatch(finishMatch(m)); };
 A.continue = () => doContinue();
+A.invBuy = (el) => { toast(buyInvest(el.dataset.v, +el.dataset.n || 0)); render(); autosave(); };
+A.invSell = (el) => openModal("confirm", { title: "Sell this investment?", text: `You'd get about ${money(investValue((G.career.life.inv || []).find((h) => h.k === el.dataset.v)))}.`, yes: "Sell", then: () => { toast(sellInvest(el.dataset.v)); render(); autosave(); } });
+A.igTab = (el) => { UI.ig = el.dataset.v; UI.igRes = null; render(); };
+A.igNew = () => { UI.igType = UI.igType && !postAllowed(UI.igType) ? UI.igType : "training"; UI.igCap = null; openModal("igNew", {}); };
+A.igType = (el) => { UI.igType = el.dataset.v; UI.igCap = null; renderModal(); };
+A.igLike = (el) => { toggleLike(+el.dataset.id); render(); autosave(); };
+A.igMore = (el) => { UI.igOpen = UI.igOpen || {}; UI.igOpen[el.dataset.id] = !UI.igOpen[el.dataset.id]; render(); };
+A.igFLike = (el) => { UI.igFL = UI.igFL || {}; const k = el.dataset.k; if (UI.igFL[k]) return; UI.igFL[k] = 1; Online.send(el.dataset.v, `❤️ liked your post: "${el.dataset.c}"`).catch(() => {}); render(); };
+A.igPost = () => {
+  const inp = document.getElementById("igCap"), r = socialPost(UI.igType || "training", inp ? inp.value.trim() : "");
+  if (r.err) { toast(r.err); return; }
+  closeModal(); UI.page = "kora"; UI.ig = "feed";
+  UI.igRes = { good: r.follow > 0 && r.post.mood > 0.1, bad: r.post.mood < -0.3, html: `<b>${r.likes.toLocaleString()} likes</b> · ${r.follow >= 0 ? "+" : ""}${r.follow.toLocaleString()} followers. ${esc(r.verdict)}${r.res.length ? " " + r.res.map(esc).join(" ") : ""}` };
+  render(); autosave(); Online.pushProfile && (Online.lastPush = 0, Online.pushProfile());
+};
 A.ff = () => {
   if (UI.busy || !G || (G.mode === "career" && G.career && G.career.retired && !G.career.pundit)) return;
   if (G.sacked && G.mode === "manager") return doContinue();
@@ -1479,6 +1593,8 @@ CH.compLg = (el) => { UI.comp.lg = el.value; render(); };
 CH.compCup = (el) => { UI.comp.cup = el.value; render(); };
 CH.ts = (el) => { const k = el.dataset.k; UI.ts[k] = el.type === "checkbox" ? el.checked : el.value; UI.ts.pg = 0; const id = el.id; render(); if (id && el.type !== "checkbox" && el.tagName === "INPUT") { const n = document.getElementById(id); if (n) { n.focus(); try { n.setSelectionRange(n.value.length, n.value.length); } catch (e) {} } } };
 CH.gName = (el) => { G.name = el.value.trim() || G.name; autosave(); };
+CH.igCapPick = (el) => { UI.igCap = el.value; const i = document.getElementById("igCap"); if (i) i.value = el.value; };
+CH.igCapType = (el) => { UI.igCap = el.value; };
 CH.lvOut = (el) => { UI.live.subOut = el.value; };
 CH.lvIn = (el) => { UI.live.subIn = el.value; };
 document.addEventListener("change", (ev) => { const el = ev.target.closest("[data-c]"); if (el && CH[el.dataset.c] && el.dataset.c !== "ts") CH[el.dataset.c](el); else if (el && el.dataset.c === "ts" && (el.tagName === "SELECT" || el.type === "checkbox")) CH.ts(el); });
@@ -1493,7 +1609,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610150230";
+const BUILD = "202610150350";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;

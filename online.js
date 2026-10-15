@@ -65,6 +65,7 @@ const Online = {
     } else Object.assign(base, { trophies: G.mgr.trophies.length, conf: Math.round(G.mgr.conf) });
     try { base.team = teamSnapshot(); } catch (e) { /* ignore */ }
     base.chWon = (G.online && G.online.chWon) || 0;
+    try { base.posts = socialExport(); } catch (e) { /* ignore */ }
     if (G.mode === "career" && G.career) base.rep = Math.round(G.career.rep == null ? 50 : G.career.rep);
     return base;
   },

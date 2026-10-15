@@ -531,7 +531,7 @@ function weekly() {
   });
   if (G.mode === "manager") boardCheck();
   maybeEvent();
-  if (G.mode === "career") { careerWeekly(); lifeWeekly(); careerWeekly2(); }
+  if (G.mode === "career") { careerWeekly(); lifeWeekly(); careerWeekly2(); investWeekly(); socialWeekly(); }
   dramaWeekly();
 }
 
