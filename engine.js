@@ -766,6 +766,7 @@ function careerRespond(msg, accept) {
   if (p.club >= 0) G.career.lastClub = p.club;
   doTransfer(p, b, a.fee, 4, a.wage);
   G.userClub = b.id; G.career.fa = false; G.career.captain = null;
+  if (a.home) homecomingDone(p, b);
   inbox({ t: `Welcome to ${b.name}`, b: `You've completed your move to ${b.name}. New contract: ${money(a.wage)}/wk until ${p.ce + 1}.`, type: "career" });
   return `You've joined ${b.name}!`;
 }
@@ -786,6 +787,7 @@ function careerRequest(kind) {
     inbox({ t: `On loan at ${to.name}`, b: `You've joined ${to.name} on loan until the end of the season. ${club(parent).name} will be watching.`, type: "career" });
     return `Loan agreed: you're joining ${to.name} for the rest of the season.`;
   }
+  if (kind === "home") return askHomecoming();
   if (kind === "contract") {
     const ag = agentOf(), dem = Math.round(wageFor(p, c) * (1 + ag.wage) / 100) * 100;
     if (p.wage >= dem * 0.95) return ag.id > 1 ? `${ag.n}: "Your deal is already as good as we'll get right now."` : "The club feel your current deal is fair.";

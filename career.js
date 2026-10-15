@@ -75,6 +75,36 @@ function checkLegend(p) {
 }
 const LEGEND_CHANTS = ["The whole stadium sang {n}'s name for ten minutes", "Fans unveil a giant banner of {n}", "{n} gets a standing ovation from the home end", "\"There's only one {n}\": the chant rings round the ground"];
 
+// ---------- asking to go home ----------
+function askHomecoming() {
+  const C = G.career, p = pl(G.userPlayer), b = boyhoodClub();
+  if (!b) return "We couldn't work out your boyhood club.";
+  if (p.club === b.id) return `You're already at ${b.name}.`;
+  if (p.loan) return "Finish your loan first.";
+  if (C.homeAsk === G.season) return `You've already asked ${b.name} this season.`;
+  C.homeAsk = G.season;
+  if (p.club >= 0) { const c = club(p.club); if (!legendHere()) C.trust = clamp((C.trust == null ? 50 : C.trust) - 6, 0, 100); news(`${fullName(p)} wants to go home`, `${c.name} are disappointed to hear it.`); }
+  if (p.o < b.rep - 8) return `${b.name} love you, but they feel you're not ready for their level yet. Try again next season.`;
+  if (inWindow() || p.club < 0) { homecomingOffer(); return `${b.name} jumped at the chance. Check your inbox for their offer.`; }
+  C.homePending = true;
+  return `${b.name} are keen. They'll make an offer as soon as the transfer window opens.`;
+}
+function homecomingOffer() {
+  const C = G.career, p = pl(G.userPlayer), b = boyhoodClub();
+  C.homePending = false;
+  if (!b || p.club === b.id) return;
+  // The selling club gives a discount when a player wants to go home; the boyhood club pays what it can.
+  const fee = p.club < 0 ? 0 : Math.round(Math.min(p.val * 0.7, Math.max(b.budget, p.val * 0.3)) / 1e5) * 1e5;
+  const wage = Math.max(500, Math.round(wageFor(p, b) / 100) * 100);
+  inbox({ t: `Homecoming: ${b.name}`, b: `${b.name}, the club where it all started, want you back${fee ? ` and have agreed a ${money(fee)} fee` : ""}. They offer ${money(wage)}/wk. Your family and the old fans would love it.`, type: "career", act: { kind: "coffer", cid: b.id, fee, wage, home: true } });
+}
+function homecomingDone(p, b) {
+  const C = G.career, L = C.life;
+  crep(4); L.happy = clamp(L.happy + 8, 0, 100); p.mor = clamp(p.mor + 10, 5, 100);
+  partnerMood(3, "She's happy to be closer to your family.", "home");
+  headline(`${fullName(p)} comes home to ${b.name}`);
+}
+
 // ---------- after each match ----------
 function careerAfterMatch(f, m) {
   const C = G.career, p = pl(G.userPlayer); if (!C || !p) return;
@@ -102,6 +132,7 @@ function careerWeekly2() {
   if (!C || !p || C.retired) return;
   if (C.rep == null) C.rep = 50;
   C.disc = Math.max(0, (C.disc || 0) - 0.8);
+  if (C.homePending && inWindow() && p.club >= 0) homecomingOffer();
   if (C.disc < 25) C.warned = 0;
   if (C.train && C.train.int === 0) C.disc = Math.min(100, C.disc + 0.4);
   const L = C.life;

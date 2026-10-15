@@ -579,7 +579,7 @@ PAGES.career = () => {
       ${UI.talkRes ? `<div class="moment done">${esc(UI.talkRes)}</div>` : ""}
       <div class="row"><button class="btn" data-a="mgrTalk" data-k="time">Ask for more playing time</button><button class="btn" data-a="mgrTalk" data-k="feedback">Ask for feedback</button><button class="btn" data-a="mgrTalk" data-k="complain">Complain about being dropped</button><button class="btn" data-a="mgrTalk" data-k="captain">Ask to be captain</button></div>
       <div class="row"><select id="posReq" aria-label="Position">${POS_NEAR[p.pos].filter((x) => x !== "GK").map((x) => `<option>${x}</option>`).join("")}</select><button class="btn" data-a="mgrTalk" data-k="position" ${POS_NEAR[p.pos].length ? "" : "disabled"}>Ask to play there</button></div>
-      <h4 style="margin-top:6px">Club</h4><div class="row"><button class="btn" data-a="creq" data-v="list" ${p.loan ? "disabled" : ""}>${p.listed ? "Withdraw transfer request" : "Hand in a transfer request"}</button><button class="btn" data-a="creq" data-v="contract" ${p.loan ? "disabled" : ""}>Ask for a new contract</button><button class="btn" data-a="creq" data-v="loan" ${p.loan ? "disabled" : ""}>${p.loan ? "On loan from " + esc(club(p.loan.from).name) : "Ask to go out on loan"}</button></div>
+      <h4 style="margin-top:6px">Club</h4><div class="row"><button class="btn" data-a="creq" data-v="list" ${p.loan ? "disabled" : ""}>${p.listed ? "Withdraw transfer request" : "Hand in a transfer request"}</button><button class="btn" data-a="creq" data-v="contract" ${p.loan ? "disabled" : ""}>Ask for a new contract</button><button class="btn" data-a="creq" data-v="loan" ${p.loan ? "disabled" : ""}>${p.loan ? "On loan from " + esc(club(p.loan.from).name) : "Ask to go out on loan"}</button>${(() => { const b = boyhoodClub(); return b && b.id !== p.club ? `<button class="btn" data-a="creq" data-v="home" ${p.loan ? "disabled" : ""}>Ask to return to ${esc(b.name)}</button>` : ""; })()}</div>
       <p class="small muted" style="margin:0">Clubs only come in for you every couple of seasons, unless you hand in a transfer request or your agent goes looking.</p></div>
       <div class="panel stack"><div class="panel-h"><h3>Agent</h3><span class="chip ${ag.id ? "gold" : ""}">${esc(ag.n)}</span></div>
       ${ag.id ? `<div class="small">${esc(ag.d)} Fee: ${Math.round(ag.fee * 100)}% of wages. Better wages (+${Math.round(ag.wage * 100)}%), more offers, bigger boot deals.</div><div class="row"><button class="btn" data-a="agentAct" data-k="search">${cr.agentSearch ? "Stop looking for a move" : "Find me a new club"}</button><button class="btn" data-a="agentAct" data-k="contract">Negotiate a new contract</button></div>` : `<div class="small muted">An agent negotiates better wages, brings more transfer offers and bigger sponsorship deals, for a cut of your wages.</div>`}
@@ -1392,7 +1392,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610141930";
+const BUILD = "202610150010";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;
