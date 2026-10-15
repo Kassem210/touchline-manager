@@ -107,7 +107,7 @@ const Online = {
       const pr = this.pair(code);
       const q = query(collection(this.db, "chats", pr, "msgs"), orderBy("at"), limitToLast(60));
       this.unsub.push(onSnapshot(q, (s) => {
-        this.chats[pr] = s.docs.map((d) => { const x = d.data({ serverTimestamps: "estimate" }); return { id: d.id, from: x.from, text: x.text, h2h: x.h2h || null, ch: x.ch || null, at: x.at && x.at.toMillis ? x.at.toMillis() : Date.now() }; });
+        this.chats[pr] = s.docs.map((d) => { const x = d.data({ serverTimestamps: "estimate" }); return { id: d.id, from: x.from, text: x.text, h2h: x.h2h || null, ch: x.ch || null, pc: x.pc || null, pl: x.pl || null, at: x.at && x.at.toMillis ? x.at.toMillis() : Date.now() }; });
         if (this.open === code) this.markRead(code);
         refreshOnlineUI();
       }, (e) => { this.err = "Messages couldn't load. Check that the Firestore security rules were published."; refreshOnlineUI(); }));
@@ -130,6 +130,27 @@ const Online = {
     if (!text) return;
     const { collection, addDoc, serverTimestamp } = this.fs;
     await addDoc(collection(this.db, "chats", this.pair(code), "msgs"), { from: G.online.code, text, at: serverTimestamp() });
+  },
+  // Kora: comments and likes on posts travel as chat messages between the two friends.
+  async postComment(code, owner, at, text) {
+    text = String(text || "").trim().slice(0, 300); if (!text) return;
+    const { collection, addDoc, serverTimestamp } = this.fs;
+    await addDoc(collection(this.db, "chats", this.pair(code), "msgs"), { from: G.online.code, text, at: serverTimestamp(), pc: { o: owner, p: at } });
+  },
+  async postLike(code, owner, at, cap) {
+    const { collection, addDoc, serverTimestamp } = this.fs;
+    await addDoc(collection(this.db, "chats", this.pair(code), "msgs"), { from: G.online.code, text: `❤️ liked your post: "${String(cap || "").slice(0, 60)}"`, at: serverTimestamp(), pl: { o: owner, p: at } });
+  },
+  postMsgs(owner, at, kind = "pc") {
+    const out = [];
+    for (const pr in this.chats) for (const m of this.chats[pr]) if (m[kind] && m[kind].o === owner && m[kind].p === at) out.push(m);
+    return out.sort((a, b) => a.at - b.at);
+  },
+  koraNew() {
+    if (!G || !G.online || !G.online.code) return 0;
+    const seen = G.online.koraSeen || 0, me = G.online.code;
+    let n = 0; for (const pr in this.chats) for (const m of this.chats[pr]) if (m.from !== me && m.at > seen && ((m.pc && m.pc.o === me) || (m.pl && m.pl.o === me))) n++;
+    return n;
   },
   async sendChallenge(code, type) {
     const c = CHALLENGES[type]; if (!c) return "Pick a challenge.";
@@ -187,10 +208,12 @@ function refreshOnlineUI() {
     const atBottom = box ? box.scrollTop + box.clientHeight >= box.scrollHeight - 30 : true;
     const draft = document.getElementById("chatInput"), dv = draft ? draft.value : null, hadFocus = draft && document.activeElement === draft;
     const add = document.getElementById("friendCode"), av = add ? add.value : null;
+    const ae = document.activeElement, igId = ae && ae.id && ae.id.startsWith("igc-") ? ae.id : null, igV = igId ? ae.value : null;
     const n = Online.totalUnread();
-    if (UI.page === "phone") { Online._lastN = n; render(); } else if (n !== Online._lastN) { Online._lastN = n; render(); }
+    if (UI.page === "phone" || UI.page === "kora") { Online._lastN = n; render(); } else if (n !== Online._lastN) { Online._lastN = n; render(); }
     const nd = document.getElementById("chatInput"); if (nd && dv != null) { nd.value = dv; if (hadFocus) nd.focus(); }
     const na = document.getElementById("friendCode"); if (na && av != null) na.value = av;
+    if (igId) { const el = document.getElementById(igId); if (el) { el.value = igV; el.focus(); } }
     const nb = document.getElementById("chatScroll"); if (nb && atBottom) nb.scrollTop = nb.scrollHeight;
   }, 60);
 }

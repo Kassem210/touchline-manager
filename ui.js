@@ -148,7 +148,7 @@ function render() {
     <button class="btn go ff" data-a="ff" ${retiredLock ? "disabled" : ""} title="Simulate ordinary matches and stop at the next big moment" aria-label="Fast-forward to the next big moment">⏩</button>
     <button class="btn pri go" data-a="continue" ${retiredLock ? "disabled" : ""}>${goLabel}</button>
   </header>
-  <nav class="rail" aria-label="Sections">${nav.map(([k, l]) => k === "sep" ? '<div class="sep"></div>' : `<button class="${UI.page === k ? "on" : ""}" data-a="nav" data-p="${k}">${icon(k === "world" ? "world" : k)}<span>${l}</span>${k === "inbox" && unread ? `<span class="badge-n">${unread}</span>` : ""}${k === "phone" && Online.totalUnread() ? `<span class="badge-n">${Online.totalUnread()}</span>` : ""}</button>`).join("")}</nav>
+  <nav class="rail" aria-label="Sections">${nav.map(([k, l]) => k === "sep" ? '<div class="sep"></div>' : `<button class="${UI.page === k ? "on" : ""}" data-a="nav" data-p="${k}">${icon(k === "world" ? "world" : k)}<span>${l}</span>${k === "inbox" && unread ? `<span class="badge-n">${unread}</span>` : ""}${k === "phone" && Online.totalUnread() ? `<span class="badge-n">${Online.totalUnread()}</span>` : ""}${k === "kora" && UI.page !== "kora" && Online.koraNew() ? `<span class="badge-n">${Online.koraNew()}</span>` : ""}</button>`).join("")}</nav>
   <main id="main">${(PAGES[UI.page] || PAGES.home)()}</main></div>`;
 }
 
@@ -586,7 +586,21 @@ function igCard(x) {
   <div class="igact"><button class="iglike ${x.liked ? "on" : ""}" data-a="igLike" data-id="${x.id}" aria-label="${x.liked ? "Unlike" : "Like"}">${x.liked ? "♥" : "♡"}</button><button data-a="igMore" data-id="${x.id}" aria-label="Comments">💬</button></div>
   <div class="igbody"><b>${x.likes.toLocaleString()} likes</b><div><b>${esc(w.h)}</b> ${esc(x.cap)}</div>
   ${x.ncm > 2 && !open ? `<button class="iglink" data-a="igMore" data-id="${x.id}">View all ${fmtK(x.ncm)} comments</button>` : ""}
-  ${cms.map((c) => `<div class="small"><b>${esc(c.u)}</b>${c.v ? ' <span class="igv">✓</span>' : ""} ${esc(c.t)}</div>`).join("")}</div></article>`;
+  ${cms.map((c) => `<div class="small"><b>${esc(c.u)}</b>${c.v ? ' <span class="igv">✓</span>' : ""} ${esc(c.t)}</div>`).join("")}${x.by === "me" && x.at ? igOwnFriends(x) : ""}</div></article>`;
+}
+function igOwnFriends(x) {
+  if (!igOnline()) return "";
+  const me = G.online.code, likes = Online.postMsgs(me, x.at, "pl").filter((m) => m.from !== me), cms = Online.postMsgs(me, x.at);
+  const who = [...new Set(likes.map((m) => m.from))], talkers = [...new Set(cms.filter((m) => m.from !== me).map((m) => m.from))];
+  return `${who.length ? `<div class="small">❤️ Liked by <b>${esc(fHandle(who[0]))}</b>${who.length > 1 ? ` and ${who.length - 1} other friend${who.length > 2 ? "s" : ""}` : ""}</div>` : ""}${cms.length || talkers.length ? igThread(me, x.at, talkers) : ""}`;
+}
+const fHandle = (code) => (G.online && code === G.online.code ? handleOf(pl(G.userPlayer)) : handleName((Online.profiles[code] || {}).name || code));
+const igOnline = () => Online.available() && Online.state === "ready" && G.online && G.online.code;
+function igThread(owner, at, targets) {
+  const cms = Online.postMsgs(owner, at);
+  const id = `igc-${owner}-${at}`;
+  return `${cms.map((m) => `<div class="small"><b>${esc(fHandle(m.from))}</b> <span class="igf">${m.from === G.online.code ? "you" : "friend"}</span> ${esc(m.text)}</div>`).join("")}
+  ${targets.length ? `<div class="igcbox"><input type="text" id="${esc(id)}" maxlength="300" placeholder="${targets.length === 1 && targets[0] === owner ? "Add a comment…" : "Reply to your friends…"}" aria-label="Comment"><button class="iglink" data-a="igComment" data-o="${esc(owner)}" data-p="${at}" data-t="${esc(targets.join(","))}">Post</button></div>` : ""}`;
 }
 function igFriendCards() {
   const out = [];
@@ -596,16 +610,18 @@ function igFriendCards() {
   }
   out.sort((a, b) => b.x.at - a.x.at);
   return out.map(({ code, f, x, i }) => {
-    const T = POST_TYPES[x.t] || POST_TYPES.training, k = `${code}:${x.at}`, liked = UI.igFL && UI.igFL[k];
+    const T = POST_TYPES[x.t] || POST_TYPES.training, k = `${code}:${x.at}`, liked = Online.postMsgs(code, x.at, "pl").some((m) => m.from === G.online.code) || (UI.igFL && UI.igFL[k]);
     const h = handleName(f.name || code);
     return `<article class="igp"><header class="igh"><span class="face" style="width:34px;height:34px">${f.face ? faceSVG(f.face, f.c1 || "#7d847f", f.c2 || "#fff") : "⚽"}</span><div><b>${esc(h)}</b> <span class="igv">✓</span><div class="small muted">${esc(f.club || "")} · your friend</div></div><span class="small muted" style="margin-left:auto">${new Date(x.at).toLocaleDateString([], { month: "short", day: "numeric" })}</span></header>
     ${igImg({ type: x.t, sc: x.sc }, { face: f.face, c1: f.c1, c2: f.c2 })}
-    <div class="igact"><button class="iglike ${liked ? "on" : ""}" data-a="igFLike" data-v="${esc(code)}" data-k="${esc(k)}" data-c="${esc(String(x.c).slice(0, 60))}" aria-label="Like">${liked ? "♥" : "♡"}</button><button data-a="phoneOpen" data-v="${esc(code)}" aria-label="Message">💬</button></div>
-    <div class="igbody"><b>${(x.l || 0).toLocaleString()} likes</b><div><b>${esc(h)}</b> ${esc(x.c || "")}</div></div></article>`;
+    <div class="igact"><button class="iglike ${liked ? "on" : ""}" data-a="igFLike" data-v="${esc(code)}" data-k="${esc(k)}" data-p="${x.at}" data-c="${esc(String(x.c).slice(0, 60))}" aria-label="Like">${liked ? "♥" : "♡"}</button><button data-a="phoneOpen" data-v="${esc(code)}" aria-label="Message">💬</button></div>
+    <div class="igbody"><b>${((x.l || 0) + (liked ? 1 : 0)).toLocaleString()} likes</b><div><b>${esc(h)}</b> ${esc(x.c || "")}</div>${igThread(code, x.at, [code])}</div></article>`;
   }).join("");
 }
 PAGES.kora = () => {
   if (G.mode !== "career") return PAGES.home();
+  if (G.online && Online.koraNew()) { G.online.koraSeen = Date.now(); setTimeout(autosave, 0); }
+  if (Online.available() && Online.state === "off") setTimeout(() => Online.connect(), 0);
   const S = soc(), me = pl(G.userPlayer), tab = UI.ig || "feed", L = G.career.life;
   const tabs = `<div class="seg">${[["feed", "Home"], ["friends", "Friends"], ["me", "Profile"]].map(([k, l]) => `<button class="${tab === k ? "on" : ""}" data-a="igTab" data-v="${k}">${l}</button>`).join("")}</div>`;
   const mates = me.club >= 0 ? squad(me.club).filter((q) => q.id !== me.id).sort((a, b) => b.o - a.o).slice(0, 6) : [];
@@ -836,7 +852,7 @@ PAGES.phone = () => {
     const code = Online.open, p = Online.profiles[code] || { name: code }, msgs = Online.chats[Online.pair(code)] || [];
     Online.markRead(code);
     chat = `<div class="panel chat"><div class="panel-h"><div class="row"><button class="btn sm" data-a="phoneBack">‹ Back</button><b>${esc(p.name)}</b><span class="small muted">${esc(p.club || "")}</span></div><div class="row"><span class="small muted">Head to head: <b>${(() => { const r = Online.h2h(code); return `W${r.w} D${r.d} L${r.l}`; })()}</b></span><button class="btn sm pri" data-a="challenge" data-v="${esc(code)}">⚔️ Challenge to a friendly</button><button class="btn sm danger" data-a="phoneRemove" data-v="${esc(code)}">Remove</button></div></div>
-    <div class="chat-scroll" id="chatScroll">${msgs.length ? msgs.map((m) => `<div class="bub ${m.from === G.online.code ? "me" : ""}"><div>${esc(m.text)}</div>${chBubble(code, m)}<span>${new Date(m.at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span></div>`).join("") : `<div class="empty">No messages yet. Say hi!</div>`}</div>
+    <div class="chat-scroll" id="chatScroll">${msgs.length ? msgs.map((m) => `<div class="bub ${m.from === G.online.code ? "me" : ""}"><div>${m.pc ? `<span class="small muted">💬 On ${m.pc.o === G.online.code ? "your" : m.from === G.online.code ? "their" : "their"} Kora post:</span> ` : ""}${esc(m.text)}</div>${chBubble(code, m)}<span>${new Date(m.at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span></div>`).join("") : `<div class="empty">No messages yet. Say hi!</div>`}</div>
     <div class="row" style="margin-top:10px"><input type="text" id="chatInput" maxlength="500" placeholder="Message ${esc(p.name)}" style="flex:1;min-width:0" aria-label="Message"><button class="btn pri" data-a="phoneSend">Send</button></div>
     <div class="row" style="margin-top:8px"><button class="btn sm" data-a="phoneQuick" data-v="result">Share my last result</button><button class="btn sm" data-a="phoneQuick" data-v="stats">Share my season</button><button class="btn sm" data-a="phoneQuick" data-v="banter">Send some banter</button></div>
     <div class="row" style="margin-top:8px"><select id="chType" aria-label="Challenge" style="flex:1;min-width:0">${Object.entries(CHALLENGES).map(([k, c]) => `<option value="${k}">${esc(c.n)}${c.career ? " (players)" : ""}</option>`).join("")}</select><button class="btn sm pri" data-a="sendCh" data-v="${esc(code)}">🎯 Send challenge</button></div></div>`;
@@ -1297,7 +1313,15 @@ A.igNew = () => { UI.igType = UI.igType && !postAllowed(UI.igType) ? UI.igType :
 A.igType = (el) => { UI.igType = el.dataset.v; UI.igCap = null; renderModal(); };
 A.igLike = (el) => { toggleLike(+el.dataset.id); render(); autosave(); };
 A.igMore = (el) => { UI.igOpen = UI.igOpen || {}; UI.igOpen[el.dataset.id] = !UI.igOpen[el.dataset.id]; render(); };
-A.igFLike = (el) => { UI.igFL = UI.igFL || {}; const k = el.dataset.k; if (UI.igFL[k]) return; UI.igFL[k] = 1; Online.send(el.dataset.v, `❤️ liked your post: "${el.dataset.c}"`).catch(() => {}); render(); };
+A.igFLike = (el) => { UI.igFL = UI.igFL || {}; const k = el.dataset.k; if (UI.igFL[k]) return; UI.igFL[k] = 1; Online.postLike(el.dataset.v, el.dataset.v, +el.dataset.p, el.dataset.c).catch(() => toast("The like didn't go through.")); render(); };
+A.igComment = async (el) => {
+  const owner = el.dataset.o, at = +el.dataset.p, inp = document.getElementById(`igc-${owner}-${at}`), text = inp ? inp.value.trim() : "";
+  if (!text) return;
+  const targets = el.dataset.t.split(",").filter(Boolean);
+  el.disabled = true;
+  try { for (const t of targets) await Online.postComment(t, owner, at, text); if (inp) inp.value = ""; } catch (e) { toast("The comment didn't go through."); }
+  el.disabled = false;
+};
 A.igPost = () => {
   const inp = document.getElementById("igCap"), r = socialPost(UI.igType || "training", inp ? inp.value.trim() : "");
   if (r.err) { toast(r.err); return; }
@@ -1605,11 +1629,11 @@ document.addEventListener("input", (ev) => {
   if (c === "ts" && el.tagName === "INPUT" && el.type !== "checkbox") { clearTimeout(tsTimer); tsTimer = setTimeout(() => CH.ts(el), 280); }
   else if (c === "startField" || c === "cuName" || (c === "cpField" && el.tagName === "INPUT") || (c === "cuField" && (el.dataset.k === "name" || el.dataset.k === "short"))) CH[c](el);
 });
-document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target && ev.target.id === "chatInput") { ev.preventDefault(); A.phoneSend(); return; } if (ev.key === "Enter" && ev.target && ev.target.id === "friendCode") { ev.preventDefault(); A.phoneAdd(); return; } if (ev.key === "Escape" && UI.modal && UI.modal.kind !== "live" && UI.modal.kind !== "prematch") closeModal(); });
+document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.target && ev.target.id && ev.target.id.startsWith("igc-")) { ev.preventDefault(); const b = ev.target.parentElement.querySelector("[data-a=igComment]"); if (b) A.igComment(b); return; } if (ev.key === "Enter" && ev.target && ev.target.id === "chatInput") { ev.preventDefault(); A.phoneSend(); return; } if (ev.key === "Enter" && ev.target && ev.target.id === "friendCode") { ev.preventDefault(); A.phoneAdd(); return; } if (ev.key === "Escape" && UI.modal && UI.modal.kind !== "live" && UI.modal.kind !== "prematch") closeModal(); });
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610150350";
+const BUILD = "202610151600";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;
