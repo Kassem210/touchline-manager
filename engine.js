@@ -649,6 +649,7 @@ function doTransfer(p, to, fee, years, wage) {
   G.txlog = G.txlog || []; G.txlog.unshift({ s: G.season, d: G.day, p: p.id, from: from ? from.id : -1, to: to.id, fee });
   if (G.txlog.length > 300) G.txlog.length = 300;
   if (big) news(`${fullName(p)} joins ${to.name}`, `${to.name} have signed ${fullName(p)}${from ? " from " + from.name : " on a free transfer"}${fee ? " for " + money(fee) : ""}.`);
+  if (typeof onTransfer === "function") { try { onTransfer(p, from, to, fee); } catch (e) { console.error(e); } }
 }
 
 function askingPrice(p) {

@@ -563,20 +563,81 @@ PAGES.club = () => {
 function igWho(x) {
   const me = pl(G.userPlayer), L = G.career.life;
   if (x.by === "me") return { h: handleOf(me), av: faceHTML(me, 34), sub: me.club >= 0 ? club(me.club).name : "Free agent", v: G.career.life.fame >= 40, p: me };
+  if (typeof x.by === "string" && x.by.startsWith("acc:")) { const a = ACCOUNTS[x.by.slice(4)]; return { h: a.h, av: `<span class="igav">${a.av}</span>`, sub: a.sub, v: a.v, acc: x.by.slice(4) }; }
   if (x.by === "partner") return { h: handleName(x.pname || L.partner || "partner"), av: `<span class="igav">💕</span>`, sub: "Your partner", v: false };
   if (typeof x.by === "string" && x.by.startsWith("club:")) { const c = club(+x.by.slice(5)); return { h: handleName(c.name), av: crest(c, 34), sub: "Official account", v: true, c }; }
   const q = pl(x.by);
   const isRival = typeof rivalOf === "function" && rivalOf() && rivalOf().id === x.by;
   return q ? { h: handleOf(q), av: faceHTML(q, 34), sub: isRival ? "Your rival" : q.club >= 0 ? club(q.club).name : "", v: q.o >= 78, p: q } : { h: "former.player", av: `<span class="igav">⚽</span>`, sub: "", v: false };
 }
-function igImg(x, w) {
-  const T = POST_TYPES[x.type] || POST_TYPES.training;
-  let center = "";
-  if (w && w.c) center = `<span class="igcrest">${crest(w.c, 110)}</span>`;
-  else if (w && w.p) center = `<span class="igface">${w.p.ph ? `<img src="${esc(w.p.ph)}" alt="">` : faceSVG(w.p.face, w.p.club >= 0 ? club(w.p.club).c1 : "#7d847f", w.p.club >= 0 ? club(w.p.club).c2 : "#fff")}</span>`;
-  else if (w && w.face) center = `<span class="igface">${faceSVG(w.face, w.c1 || "#7d847f", w.c2 || "#fff")}</span>`;
-  return `<div class="igimg" style="background:linear-gradient(135deg,${T.bg[0]},${T.bg[1]})" role="img" aria-label="${esc(T.n)}"><span class="igem">${T.em}</span>${center}${x.sc ? `<span class="igsc">${esc(x.sc)}</span>` : ""}</div>`;
+// ---------- post pictures: a different scene for each kind of post ----------
+const svgAt = (str, x, y, w, h) => str.replace(/^<svg( class="crest")?( width="[^"]*" height="[^"]*")?/, `<svg x="${x}" y="${y}" width="${w}" height="${h ?? w}"`);
+const E = (e, x, y, sz, extra = "") => `<text x="${x}" y="${y}" font-size="${sz}" text-anchor="middle" dominant-baseline="central" ${extra}>${e}</text>`;
+const T_ = (t, x, y, sz, fill, extra = "") => `<text x="${x}" y="${y}" font-size="${sz}" fill="${fill}" text-anchor="middle" font-family="Saira Condensed, Impact, sans-serif" font-weight="800" ${extra}>${esc(t)}</text>`;
+function wrapText(t, n, lines) { const w = String(t).split(/\s+/), out = [""]; for (const x of w) { if ((out[out.length - 1] + " " + x).trim().length > n) { if (out.length >= lines) { out[out.length - 1] += "…"; break; } out.push(x); } else out[out.length - 1] = (out[out.length - 1] + " " + x).trim(); } return out; }
+const seeded = (seed) => { let a = seed * 9301 + 49297; return () => ((a = (a * 9301 + 49297) % 233280) / 233280); };
+function crowd(r, y0, y1, cols, n = 70) { let o = ""; for (let i = 0; i < n; i++) o += `<circle cx="${(r() * 100).toFixed(1)}" cy="${(y0 + r() * (y1 - y0)).toFixed(1)}" r="${(1 + r() * 1.3).toFixed(1)}" fill="${cols[i % cols.length]}" opacity=".9"/>`; return o; }
+function sceneSVG(x, w) {
+  const T = POST_TYPES[x.type] || POST_TYPES.training, v = (x.v || 0) % 3, r = seeded((x.id || 1) * 7 + v);
+  const pc = w && w.p && w.p.club >= 0 ? club(w.p.club) : w && w.c ? w.c : null;
+  const c1 = pc ? pc.c1 : w && w.c1 ? w.c1 : "#136f43", c2 = pc ? pc.c2 : w && w.c2 ? w.c2 : "#ffffff";
+  const faceStr = w && w.p ? (w.p.ph ? null : faceSVG(w.p.face, c1, c2)) : w && w.face ? faceSVG(w.face, c1, c2) : null;
+  const face = (X, Y, S) => (faceStr ? `<circle cx="${X + S / 2}" cy="${Y + S / 2}" r="${S / 2}" fill="#ffffff33"/>${svgAt(faceStr, X, Y, S)}` : "");
+  const grad = (a, b, id = "g") => `<defs><linearGradient id="${id}${x.id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><rect width="100" height="100" fill="url(#${id}${x.id})"/>`;
+  let b = "";
+  switch (x.type) {
+    case "match": {
+      b = grad("#0b1d3a", "#1b3b6f") + `<rect y="18" width="100" height="30" fill="#111"/>${crowd(r, 20, 46, [c1, c2, "#ddd"], 90)}<polygon points="0,100 100,100 84,48 16,48" fill="#2f8f3a"/>${[0, 1, 2, 3].map((i) => `<polygon points="${16 + i * 17},48 ${24.5 + i * 17},48 ${i * 25 + 12.5},100 ${i * 25},100" fill="#2a7f34"/>`).join("")}<line x1="50" y1="48" x2="50" y2="100" stroke="#fff8" stroke-width=".6"/><ellipse cx="50" cy="72" rx="14" ry="6" fill="none" stroke="#fff8" stroke-width=".6"/>
+      <rect x="6" y="4" width="2" height="16" fill="#777"/><rect x="2" y="2" width="10" height="4" rx="1" fill="#fffbe0"/><rect x="92" y="4" width="2" height="16" fill="#777"/><rect x="88" y="2" width="10" height="4" rx="1" fill="#fffbe0"/>`;
+      if (v === 1 || !faceStr) b += x.sc ? `<rect x="22" y="56" width="56" height="16" rx="3" fill="#000c"/>${T_(x.sc, 50, 67.5, 8.5, "#fff")}` : E("⚽", 50, 74, 16);
+      else b += face(34, 52, 32);
+      break;
+    }
+    case "goal": {
+      b = grad(T.bg[0], T.bg[1]) + `<rect x="12" y="22" width="76" height="46" fill="none" stroke="#fff" stroke-width="2.4"/>${Array.from({ length: 12 }, (_, i) => `<line x1="${12 + i * 6.5}" y1="22" x2="${12 + i * 6.5}" y2="68" stroke="#fff5" stroke-width=".5"/>`).join("")}${Array.from({ length: 7 }, (_, i) => `<line x1="12" y1="${22 + i * 7.5}" x2="88" y2="${22 + i * 7.5}" stroke="#fff5" stroke-width=".5"/>`).join("")}<rect y="68" width="100" height="32" fill="#2f8f3a"/>`;
+      b += E("⚽", [26, 72, 50][v], [32, 34, 56][v], 12) + T_("GOAL!", 50, 90, 16, "#ffd60a", 'stroke="#000" stroke-width=".6"') + (faceStr && v !== 2 ? face(v === 0 ? 62 : 12, 46, 22) : "");
+      break;
+    }
+    case "training": {
+      if (v === 2) b = grad("#111", "#333") + E("🏋️", 50, 46, 40) + `<rect x="18" y="78" width="64" height="3" rx="1.5" fill="#888"/>${E("💪", 80, 20, 14)}`;
+      else b = grad("#2f8f3a", "#3aa148") + Array.from({ length: 5 }, (_, i) => `<rect x="0" y="${i * 20}" width="100" height="10" fill="#ffffff10"/>`).join("") + [18, 38, 58, 78].map((cx) => `<polygon points="${cx},${62 + (cx % 3)} ${cx - 4},${72 + (cx % 3)} ${cx + 4},${72 + (cx % 3)}" fill="#ff7b00"/>`).join("") + E("⚽", 66, 82, 9) + face(34, 14, 34);
+      break;
+    }
+    case "thanks": b = grad(c1, shade(c1, -0.4)) + crowd(r, 30, 100, [c1, c2, "#fff", "#ffd60a"], 160) + E("🙏", 50, 34, 26) + T_("THANK YOU", 50, 64, 12, c2, 'stroke="#000" stroke-width=".4"'); break;
+    case "family": b = grad("#ff9a8b", "#ff6a88") + `<circle cx="50" cy="66" r="24" fill="#ffd27a" opacity=".85"/><rect y="74" width="100" height="26" fill="#3d405b"/>` + E(["👨‍👩‍👧", "👨‍👩‍👦", "👪"][v], 50, 54, 34) + E("❤️", 82, 18, 12); break;
+    case "car": b = grad(["#0f2027", "#ff5f6d", "#232526"][v], ["#2c5364", "#ffc371", "#414345"][v]) + `<polygon points="0,100 100,100 70,58 30,58" fill="#333"/>${[64, 74, 86].map((y, i) => `<rect x="${49 - i * 0.6}" y="${y}" width="${2 + i}" height="${4 + i * 2}" fill="#ffd60a"/>`).join("")}` + E(["🏎️", "🚙", "🚘"][v], 52, 46, 34) + [0, 1, 2].map((i) => `<line x1="${8 + i * 4}" y1="${40 + i * 6}" x2="${26 + i * 4}" y2="${40 + i * 6}" stroke="#fff8" stroke-width="1.2" stroke-linecap="round"/>`).join(""); break;
+    case "home": b = grad("#8ec5fc", "#e0c3fc") + `<rect y="70" width="100" height="30" fill="#7cc576"/><rect x="58" y="78" width="34" height="12" rx="2" fill="#4cc9f0"/>` + E("🏡", 36, 58, 36) + E("🌴", 84, 56, 18); break;
+    case "holiday": b = grad("#48cae4", "#0077b6") + `<circle cx="${[78, 24, 50][v]}" cy="20" r="10" fill="#ffd60a"/><rect y="64" width="100" height="36" fill="#f2d49b"/><path d="M0 64 Q25 58 50 64 T100 64 V70 H0Z" fill="#90e0ef"/>` + E(["🏖️", "⛵", "🌴"][v], 50, 50, 30) + E("🍹", 82, 78, 12); break;
+    case "party": b = grad("#10002b", "#3c096c") + Array.from({ length: 14 }, () => `<circle cx="${r() * 100}" cy="${r() * 100}" r="${3 + r() * 9}" fill="${pick(["#f72585", "#4cc9f0", "#ffd60a", "#7209b7"])}" opacity=".35"/>`).join("") + E("🪩", 50, 30, 22) + E("🎉", 30, 70, 20) + E("🥳", 70, 70, 20); break;
+    case "charity": b = grad("#fff1e6", "#fde2e4") + E("🏥", 30, 40, 26) + E("🧸", 70, 56, 24) + E("❤️", 50, 22, 14) + T_("GIVING BACK", 50, 88, 10, "#9b2226"); break;
+    case "sponsor": { const br = G.career.life.spons ? BRAND_BY[G.career.life.spons.brand] : null; b = grad("#111", "#2b2b2b") + `<ellipse cx="50" cy="72" rx="30" ry="6" fill="#ffffff22"/>` + E("👟", 50, 52, 38) + (br ? T_(br.n.toUpperCase(), 50, 90, 10, br.bg === "#111111" ? "#fff" : br.bg) : "") + T_("#AD", 86, 12, 7, "#fff8"); break; }
+    case "cryptic": b = `<rect width="100" height="100" fill="#0d0d0d"/>` + E(["✈️", "🧳", "🤐"][v], 50, 44, 30) + T_("…", 50, 80, 20, "#fff"); break;
+    case "rival": { const rv = typeof rivalOf === "function" ? rivalOf() : null; const rc = rv && rv.club >= 0 ? club(rv.club) : { c1: "#7a1f1f", c2: "#fff" };
+      b = `<polygon points="0,0 60,0 40,100 0,100" fill="${c1}"/><polygon points="60,0 100,0 100,100 40,100" fill="${rc.c1}"/>` + face(4, 30, 36) + (rv ? `<circle cx="78" cy="48" r="18" fill="#ffffff33"/>${svgAt(faceSVG(rv.face, rc.c1, rc.c2), 60, 30, 36)}` : "") + `<circle cx="50" cy="50" r="10" fill="#000"/>${T_("VS", 50, 54.5, 11, "#ffd60a")}`; break; }
+    case "transfer": {
+      const fr = x.from != null ? club(x.from) : null, to = x.to != null ? club(x.to) : null;
+      b = grad("#0b132b", "#1c2541") + (fr ? svgAt(crest(fr, 30), 8, 30, 28, 31) : E("🆓", 22, 46, 18)) + (to ? svgAt(crest(to, 30), 64, 30, 28, 31) : "") + `<path d="M40 46 H58 M52 40 L58 46 L52 52" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` + E("🚨", 12, 12, 10) + E("🚨", 88, 12, 10);
+      const an = x.d != null && absDay() - x.d <= 1 ? " anim" : "";
+      b += x.rumour ? `<g class="hwg-stamp${an}"><rect x="22" y="70" width="56" height="14" rx="2" fill="none" stroke="#ffd60a" stroke-width="1.6" transform="rotate(-4 50 77)"/>${T_("EXCLUSIVE", 50, 81, 10, "#ffd60a", 'transform="rotate(-4 50 77)"')}</g>`
+        : `<g class="hwg-stamp${an}"><rect x="16" y="68" width="68" height="18" rx="2" fill="none" stroke="#ff2d2d" stroke-width="2" transform="rotate(-6 50 77)"/>${T_("HERE WE GO!", 50, 82, 13, "#ff2d2d", 'transform="rotate(-6 50 77)"')}</g>`;
+      if (x.pn) b += T_(String(x.pn).toUpperCase(), 50, 22, 8, "#fff");
+      break;
+    }
+    case "news": { const lines = wrapText(x.head || x.cap, 22, 4); b = `<rect width="100" height="100" fill="#f4f1ea"/><rect width="100" height="16" fill="#c1121f"/>${T_("BREAKING", 50, 11.5, 9, "#fff")}${lines.map((l, i) => `<text x="8" y="${32 + i * 13}" font-size="9.5" font-family="Georgia, serif" font-weight="700" fill="#111">${esc(l)}</text>`).join("")}<rect x="8" y="88" width="40" height="2" fill="#999"/><rect x="8" y="92" width="60" height="2" fill="#bbb"/>`; break; }
+    case "stats": b = `<rect width="100" height="100" fill="#111827"/>${T_(x.title || "STATS", 50, 14, 9, "#ffd60a")}` + (x.rows || []).map(([n, val, me], i) => { const max = Math.max(...x.rows.map((q) => q[1])) || 1; const y = 26 + i * 17; return `<text x="8" y="${y + 6}" font-size="7" fill="${me ? "#3dbb7a" : "#fff"}" font-family="Saira Condensed, sans-serif" font-weight="700">${i + 1}. ${esc(n)}</text><rect x="8" y="${y + 9}" width="${(val / max) * 70}" height="4" rx="2" fill="${me ? "#3dbb7a" : "#4cc9f0"}"/><text x="92" y="${y + 6}" font-size="8" fill="#fff" text-anchor="end" font-weight="800">${val}</text>`; }).join(""); break;
+    case "meme": b = `<rect width="100" height="100" fill="#fff"/><rect x="2" y="2" width="96" height="96" fill="none" stroke="#000" stroke-width="1"/>` + wrapText(x.top || "", 24, 2).map((l, i) => T_(l, 50, 12 + i * 9, 8, "#000")).join("") + E(x.em || "🤡", 50, 54, 34) + wrapText(x.bot || "", 24, 2).map((l, i) => T_(l, 50, 84 + i * 9, 8, "#000")).join(""); break;
+    case "trophy": b = `<defs><radialGradient id="rg${x.id}"><stop offset="0" stop-color="#fff3b0"/><stop offset="1" stop-color="#b8860b"/></radialGradient></defs><rect width="100" height="100" fill="url(#rg${x.id})"/>` + Array.from({ length: 26 }, () => `<rect x="${r() * 100}" y="${r() * 100}" width="2" height="4" fill="${pick([c1, c2, "#e63946", "#4cc9f0"])}" transform="rotate(${r() * 90} ${r() * 100} ${r() * 100})"/>`).join("") + E("🏆", 50, 50, 44) + T_("CHAMPIONS", 50, 90, 11, "#5a3e00"); break;
+    case "award": b = grad("#1d2b53", "#3a4f8f") + E("🏅", 50, 42, 40) + T_(wrapText(x.moment || x.cap, 18, 1)[0].toUpperCase(), 50, 84, 8, "#ffd60a") + `<circle cx="20" cy="18" r="1.5" fill="#fff"/><circle cx="82" cy="26" r="1" fill="#fff"/><circle cx="70" cy="12" r="1.2" fill="#fff"/>`; break;
+    case "wedding": b = grad("#f8c8dc", "#fbe3ec") + E("💒", 32, 50, 30) + E("💍", 70, 42, 26) + E("🤍", 70, 74, 14); break;
+    case "baby": b = grad("#bde0fe", "#e7f2ff") + E("👶", 50, 46, 40) + E("🍼", 80, 78, 14) + E("🧸", 20, 78, 14); break;
+    case "injury": b = grad("#6c757d", "#adb5bd") + E("🩹", 50, 40, 32) + face(8, 60, 30) + T_("BACK SOON", 66, 80, 10, "#fff"); break;
+    case "legend": b = grad("#7a5a00", "#f2c230") + E("⭐", 18, 18, 14) + E("⭐", 82, 18, 14) + face(28, 18, 44) + T_("LEGEND", 50, 88, 16, "#3d2b00"); break;
+    case "record": b = grad("#14213d", "#264653") + E("📈", 50, 34, 30) + T_("NEW RECORD", 50, 74, 12, "#ffd60a") + face(76, 76, 20); break;
+    default: b = grad(T.bg[0], T.bg[1]) + E(T.em, 78, 20, 16) + face(26, 26, 48);
+  }
+  return `<svg class="igsvg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" role="img" aria-label="${esc(T.n)}">${b}</svg>`;
 }
+function igImg(x, w) { return `<div class="igimg">${sceneSVG(x, w)}</div>`; }
 const igAgo = (d) => { const n = absDay() - d; return n <= 0 ? "Today" : n < 7 ? `${n}d` : `${Math.floor(n / 7)}w`; };
 function igCard(x) {
   const w = igWho(x), open = UI.igOpen && UI.igOpen[x.id];
@@ -613,7 +674,7 @@ function igFriendCards() {
     const T = POST_TYPES[x.t] || POST_TYPES.training, k = `${code}:${x.at}`, liked = Online.postMsgs(code, x.at, "pl").some((m) => m.from === G.online.code) || (UI.igFL && UI.igFL[k]);
     const h = handleName(f.name || code);
     return `<article class="igp"><header class="igh"><span class="face" style="width:34px;height:34px">${f.face ? faceSVG(f.face, f.c1 || "#7d847f", f.c2 || "#fff") : "⚽"}</span><div><b>${esc(h)}</b> <span class="igv">✓</span><div class="small muted">${esc(f.club || "")} · your friend</div></div><span class="small muted" style="margin-left:auto">${new Date(x.at).toLocaleDateString([], { month: "short", day: "numeric" })}</span></header>
-    ${igImg({ type: x.t, sc: x.sc }, { face: f.face, c1: f.c1, c2: f.c2 })}
+    ${igImg({ type: x.t, sc: x.sc, id: 500000 + (x.at % 400000), v: x.at % 3, pn: f.name }, { face: f.face, c1: f.c1, c2: f.c2 })}
     <div class="igact"><button class="iglike ${liked ? "on" : ""}" data-a="igFLike" data-v="${esc(code)}" data-k="${esc(k)}" data-p="${x.at}" data-c="${esc(String(x.c).slice(0, 60))}" aria-label="Like">${liked ? "♥" : "♡"}</button><button data-a="phoneOpen" data-v="${esc(code)}" aria-label="Message">💬</button></div>
     <div class="igbody"><b>${((x.l || 0) + (liked ? 1 : 0)).toLocaleString()} likes</b><div><b>${esc(h)}</b> ${esc(x.c || "")}</div>${igThread(code, x.at, [code])}</div></article>`;
   }).join("");
@@ -966,19 +1027,36 @@ MODALS.msg = (m) => {
 };
 MODALS.confirm = (m) => modalShell(`<h3>${esc(m.title)}</h3>`, `<div class="stack"><p style="margin:0">${esc(m.text)}</p><div class="row" style="justify-content:flex-end"><button class="btn" data-a="close">Cancel</button><button class="btn ${m.danger ? "danger" : "pri"}" data-a="confirmYes">${esc(m.yes || "Confirm")}</button></div></div>`);
 MODALS.igNew = () => {
-  const t = UI.igType || "training", T = POST_TYPES[t];
-  const tiles = Object.entries(POST_TYPES).map(([k, x]) => { const why = postAllowed(k); return `<button class="igtile ${t === k ? "on" : ""}" data-a="igType" data-v="${k}" ${why ? "disabled" : ""} title="${esc(why)}"><span>${x.em}</span><b class="small">${esc(x.n)}</b>${why ? `<span class="small muted">${esc(why)}</span>` : ""}</button>`; }).join("");
-  const why = postAllowed(t);
-  let mood = 0; for (let i = 0; i < 6; i++) mood += postMood(t); mood /= 6;
+  const moments = recentMoments(), mi = UI.igMoment;
+  const mo = mi != null && moments[mi] ? moments[mi] : null;
+  const t = mo ? mo.kind : UI.igType || "training", T = POST_TYPES[t];
+  const tiles = Object.entries(POST_TYPES).filter(([, x]) => !x.npc).map(([k, x]) => { const why = postAllowed(k); return `<button class="igtile ${!mo && t === k ? "on" : ""}" data-a="igType" data-v="${k}" ${why ? "disabled" : ""} title="${esc(why)}"><span>${x.em}</span><b class="small">${esc(x.n)}</b>${why ? `<span class="small muted">${esc(why)}</span>` : ""}</button>`; }).join("");
+  const momHTML = moments.length ? `<div><h4 style="margin:0 0 6px">Post about something that just happened</h4><div class="row" style="gap:6px">${moments.map((m, k) => `<button class="btn sm ${mi === k ? "pri" : ""}" data-a="igMoment" data-v="${k}">${POST_TYPES[m.kind].em} ${esc(m.t.length > 48 ? m.t.slice(0, 46) + "…" : m.t)}</button>`).join("")}</div></div>` : "";
+  const why = mo ? "" : postAllowed(t);
+  let mood = 0;
+  if (mo) mood = 0.6; else { for (let k = 0; k < 6; k++) mood += postMood(t); mood /= 6; }
   const face = mood > 0.5 ? "😍 They'll probably love it" : mood > 0.1 ? "🙂 Probably fine" : mood > -0.3 ? "😐 Could go either way" : "😠 The fans won't like this right now";
-  const caps = captionsFor(t), cap = UI.igCap != null ? UI.igCap : caps[0];
+  const caps = mo ? [...POST_TYPES[t].caps.slice(0, 2), mo.t] : captionsFor(t), cap = UI.igCap != null ? UI.igCap : caps[0];
+  const prev = { type: t, id: 999999, v: 0, moment: mo ? mo.t : null, sc: G.career.last && G.career.last.sc, to: pl(G.userPlayer).club >= 0 ? pl(G.userPlayer).club : null };
   return modalShell(`<div><h4>Kora</h4><h3>New post</h3></div>`, `<div class="stack">
+  ${momHTML}<h4 style="margin:4px 0 0">Or choose a photo</h4>
   <div class="igtiles">${tiles}</div>
-  <div class="grid g2" style="align-items:start"><div>${igImg({ type: t }, { p: pl(G.userPlayer) })}</div>
+  <div class="grid g2" style="align-items:start"><div>${igImg(prev, { p: pl(G.userPlayer) })}</div>
   <div class="stack"><div class="small"><b>Fans' likely reaction:</b> ${face}</div>
   <div class="stack" style="gap:6px">${caps.map((c) => `<label class="row small" style="gap:6px"><input type="radio" name="igcap" ${cap === c ? "checked" : ""} data-c="igCapPick" value="${esc(c)}">${esc(c)}</label>`).join("")}</div>
   <label class="f">Caption<input type="text" id="igCap" maxlength="140" value="${esc(cap)}" data-c="igCapType"></label>
   <button class="btn pri" data-a="igPost" ${why ? "disabled" : ""}>Share</button>${why ? `<span class="small muted">${esc(why)}</span>` : ""}</div></div></div>`, { wide: true });
+};
+MODALS.hwg = (t) => {
+  const to = club(t.to), from = t.from != null ? club(t.from) : null;
+  return `<div class="scrim hwg" data-a="close"><div class="hwg-card" role="dialog" aria-modal="true" aria-label="Here we go">
+    <div class="hwg-siren">🚨</div>
+    <div class="hwg-clubs"><span class="hwg-from">${from ? crest(from, 84) : "🆓"}</span><span class="hwg-arrow">➜</span><span class="hwg-to">${crest(to, 84)}</span></div>
+    <div class="hwg-name">${esc(t.n)}</div>
+    <div class="hwg-text">HERE WE GO!</div>
+    <div class="hwg-sub">${esc(to.name)}${t.fee ? ` · ${money(t.fee)}` : " · free transfer"} · until ${(t.ce || G.season + 3) + 1} ✅</div>
+    <div class="small" style="opacity:.75;margin-top:10px">@${esc(JOURNALIST.handle)} · tap to close</div>
+  </div></div>`;
 };
 MODALS.season = (m) => {
   const H = G.hist, last = (arr) => arr && arr[arr.length - 1];
@@ -1309,8 +1387,9 @@ A.continue = () => doContinue();
 A.invBuy = (el) => { toast(buyInvest(el.dataset.v, +el.dataset.n || 0)); render(); autosave(); };
 A.invSell = (el) => openModal("confirm", { title: "Sell this investment?", text: `You'd get about ${money(investValue((G.career.life.inv || []).find((h) => h.k === el.dataset.v)))}.`, yes: "Sell", then: () => { toast(sellInvest(el.dataset.v)); render(); autosave(); } });
 A.igTab = (el) => { UI.ig = el.dataset.v; UI.igRes = null; render(); };
-A.igNew = () => { UI.igType = UI.igType && !postAllowed(UI.igType) ? UI.igType : "training"; UI.igCap = null; openModal("igNew", {}); };
-A.igType = (el) => { UI.igType = el.dataset.v; UI.igCap = null; renderModal(); };
+A.igNew = () => { UI.igType = UI.igType && POST_TYPES[UI.igType] && !POST_TYPES[UI.igType].npc && !postAllowed(UI.igType) ? UI.igType : "training"; UI.igMoment = null; UI.igCap = null; openModal("igNew", {}); };
+A.igType = (el) => { UI.igType = el.dataset.v; UI.igMoment = null; UI.igCap = null; renderModal(); };
+A.igMoment = (el) => { UI.igMoment = +el.dataset.v; UI.igCap = null; renderModal(); };
 A.igLike = (el) => { toggleLike(+el.dataset.id); render(); autosave(); };
 A.igMore = (el) => { UI.igOpen = UI.igOpen || {}; UI.igOpen[el.dataset.id] = !UI.igOpen[el.dataset.id]; render(); };
 A.igFLike = (el) => { UI.igFL = UI.igFL || {}; const k = el.dataset.k; if (UI.igFL[k]) return; UI.igFL[k] = 1; Online.postLike(el.dataset.v, el.dataset.v, +el.dataset.p, el.dataset.c).catch(() => toast("The like didn't go through.")); render(); };
@@ -1323,7 +1402,9 @@ A.igComment = async (el) => {
   el.disabled = false;
 };
 A.igPost = () => {
-  const inp = document.getElementById("igCap"), r = socialPost(UI.igType || "training", inp ? inp.value.trim() : "");
+  const ms = recentMoments(), mo = UI.igMoment != null ? ms[UI.igMoment] : null;
+  const inp = document.getElementById("igCap"), r = mo ? socialPost(mo.kind, inp ? inp.value.trim() : "", mo.t) : socialPost(UI.igType || "training", inp ? inp.value.trim() : "");
+  UI.igMoment = null;
   if (r.err) { toast(r.err); return; }
   closeModal(); UI.page = "kora"; UI.ig = "feed";
   UI.igRes = { good: r.follow > 0 && r.post.mood > 0.1, bad: r.post.mood < -0.3, html: `<b>${r.likes.toLocaleString()} likes</b> · ${r.follow >= 0 ? "+" : ""}${r.follow.toLocaleString()} followers. ${esc(r.verdict)}${r.res.length ? " " + r.res.map(esc).join(" ") : ""}` };
@@ -1633,7 +1714,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610151600";
+const BUILD = "202610151800";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;

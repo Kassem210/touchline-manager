@@ -109,6 +109,24 @@ main { padding: 20px 22px 60px; min-width: 0; }
 .igcbox { display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
 .igcbox input { flex: 1; min-width: 0; border: 0; background: transparent; padding: 4px 0; font: inherit; color: inherit; outline: none; }
 .igcbox .iglink { color: #3897f0; font-weight: 700; }
+.igimg { position: relative; aspect-ratio: 1 / 1; overflow: hidden; }
+.igsvg { display: block; width: 100%; height: 100%; }
+.hwg-stamp.anim { transform-box: fill-box; transform-origin: center; animation: hwgpop .7s cubic-bezier(.2,1.6,.4,1) both .25s; }
+@keyframes hwgpop { 0% { transform: scale(2.4); opacity: 0; } 60% { opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+.scrim.hwg { display: flex; align-items: center; justify-content: center; background: rgba(5, 8, 20, .88); cursor: pointer; }
+.hwg-card { text-align: center; color: #fff; padding: 24px 16px; max-width: 520px; width: 100%; }
+.hwg-siren { font-size: 54px; animation: hwgsiren .5s ease-in-out infinite alternate; }
+@keyframes hwgsiren { from { transform: rotate(-12deg) scale(1); filter: drop-shadow(0 0 0 #f00); } to { transform: rotate(12deg) scale(1.15); filter: drop-shadow(0 0 18px #f00); } }
+.hwg-clubs { display: flex; align-items: center; justify-content: center; gap: 18px; margin: 14px 0; font-size: 40px; }
+.hwg-from { animation: hwgin-l .6s ease-out both; } .hwg-to { animation: hwgin-r .6s ease-out both .15s; } .hwg-arrow { animation: hwgfade .4s both .5s; }
+@keyframes hwgin-l { from { transform: translateX(-120px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes hwgin-r { from { transform: translateX(120px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes hwgfade { from { opacity: 0; } to { opacity: 1; } }
+.hwg-name { font-family: var(--f-display); font-size: 1.6rem; font-weight: 800; letter-spacing: .03em; animation: hwgfade .4s both .7s; }
+.hwg-text { display: inline-block; margin-top: 10px; font-family: var(--f-display); font-weight: 900; font-size: clamp(2.6rem, 11vw, 4.2rem); color: #ff2d2d; border: 4px solid #ff2d2d; padding: 2px 18px; border-radius: 8px; transform: rotate(-6deg); animation: hwgstamp .6s cubic-bezier(.2,1.6,.4,1) both 1s; text-shadow: 0 0 22px #ff2d2d88; }
+@keyframes hwgstamp { 0% { transform: rotate(-6deg) scale(3); opacity: 0; } 100% { transform: rotate(-6deg) scale(1); opacity: 1; } }
+.hwg-sub { margin-top: 14px; font-weight: 600; animation: hwgfade .4s both 1.5s; }
+@media (prefers-reduced-motion: reduce) { .hwg-stamp.anim, .hwg-siren, .hwg-from, .hwg-to, .hwg-arrow, .hwg-name, .hwg-text, .hwg-sub { animation: none !important; } }
 .igprof { display: flex; gap: 18px; align-items: center; margin-bottom: 16px; }
 .igcounts { gap: 16px; margin: 6px 0; }
 .iggrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
@@ -321,19 +339,19 @@ table.t td.c, table.t th.c { text-align: center; }
 </head>
 <body>
 <div id="app"><div class="loading">Loading Touchline…</div></div>
-<script src="data.js?v=202610151600"></script>
-<script src="real.js?v=202610151600"></script>
-<script src="engine.js?v=202610151600"></script>
-<script src="world.js?v=202610151600"></script>
-<script src="progress.js?v=202610151600"></script>
-<script src="ads.js?v=202610151600"></script>
-<script src="career.js?v=202610151600"></script>
-<script src="events.js?v=202610151600"></script>
-<script src="drama.js?v=202610151600"></script>
-<script src="invest.js?v=202610151600"></script>
-<script src="social.js?v=202610151600"></script>
-<script src="online.js?v=202610151600"></script>
-<script src="match.js?v=202610151600"></script>
-<script src="ui.js?v=202610151600"></script>
+<script src="data.js?v=202610151800"></script>
+<script src="real.js?v=202610151800"></script>
+<script src="engine.js?v=202610151800"></script>
+<script src="world.js?v=202610151800"></script>
+<script src="progress.js?v=202610151800"></script>
+<script src="ads.js?v=202610151800"></script>
+<script src="career.js?v=202610151800"></script>
+<script src="events.js?v=202610151800"></script>
+<script src="drama.js?v=202610151800"></script>
+<script src="invest.js?v=202610151800"></script>
+<script src="social.js?v=202610151800"></script>
+<script src="online.js?v=202610151800"></script>
+<script src="match.js?v=202610151800"></script>
+<script src="ui.js?v=202610151800"></script>
 </body>
 </html>

@@ -106,20 +106,21 @@ function soc() {
 }
 function makePost(by, type, cap, extra = {}) {
   const S = soc();
-  return { id: S.seq++, by, type, cap, d: absDay(), likes: 0, cm: [], ncm: 0, liked: false, ...extra };
+  return { id: S.seq++, by, type, cap, d: absDay(), likes: 0, cm: [], ncm: 0, liked: false, v: (rnd() * 3) | 0, ...extra };
 }
-function socialPost(type, cap) {
+function socialPost(type, cap, moment) {
   const C = G.career, L = C.life, p = pl(G.userPlayer), S = soc(), T = POST_TYPES[type];
-  const why = postAllowed(type); if (why) return { err: why };
+  const why = moment ? "" : postAllowed(type); if (why) return { err: why };
   if (S.posts.length && S.posts[0].d === absDay()) return { err: "You've already posted today. Fans get tired of spam." };
   const recent = S.posts.filter((x) => absDay() - x.d < 7).length;
-  const mood = postMood(type);
+  const mood = moment ? clamp((type === "injury" ? 0.45 : 0.6) + ((C.rep == null ? 50 : C.rep) - 50) / 80 + randn() * 0.1, -1, 1) : postMood(type);
   const spam = Math.pow(0.75, recent);
   const likes = Math.round(S.followers * clamp(0.06 + mood * 0.04 + randn() * 0.01, 0.01, 0.14) * T.m * spam);
   const follow = Math.round(likes * (mood > 0 ? 0.05 : -0.04) + S.followers * 0.002 * mood);
   S.followers = Math.max(100, S.followers + follow);
   const post = makePost("me", type, String(cap || captionsFor(type)[0]).slice(0, 140), { likes, ncm: Math.round(likes * (0.012 + Math.abs(mood) * 0.01)), mood, at: Date.now(),
-    sc: (type === "match" || type === "goal") && C.last ? C.last.sc || null : null });
+    sc: (type === "match" || type === "goal") && C.last ? C.last.sc || null : null, moment: moment || null });
+  if (type === "transfer" && p.club >= 0) post.to = p.club;
   post.cm = genComments(type, mood, 4, p);
   // real people react too
   const tm = typeof pickTeammate === "function" ? pickTeammate() : null;
@@ -154,7 +155,7 @@ const NPC_POSTS = {
   family: ["Daddy duty ❤️", "Best weekend", "My people"],
   gym: ["Leg day 😮‍💨", "Never skip", "5am club"],
 };
-function addNpc(post) { const S = soc(); S.npc.unshift(post); if (S.npc.length > 40) S.npc.length = 40; }
+function addNpc(post) { const S = soc(); S.npc.unshift(post); if (S.npc.length > 60) S.npc.length = 60; }
 function npcPost(p, kind, extra = {}) {
   const fame = clamp(p.o - 50, 5, 45);
   const likes = Math.round(Math.pow(fame, 2) * (40 + rnd() * 60));
@@ -166,6 +167,7 @@ function npcPost(p, kind, extra = {}) {
 function socialWeekly() {
   const C = G.career; if (!C || !C.life) return;
   const S = soc(), p = pl(G.userPlayer);
+  try { mediaWeekly(); } catch (e) { console.error(e); }
   S.followers = Math.round(S.followers * (1.002 + (C.rep == null ? 0 : (C.rep - 50) / 20000)) + C.life.fame * 12);
   if (p && p.club >= 0) {
     const n = rnd() < 0.5 ? 1 : 2;
@@ -187,6 +189,7 @@ function socialAfterMatch(f, m) {
   if (m.goals[p.id]) post.cm.unshift({ u: fanName(), t: `${p.ln.toUpperCase()} 🔥🔥🔥` });
   addNpc(post);
   if (won && rnd() < 0.5) { const t = pickTeammate(); if (t && m.rt[t] != null) npcPost(pl(t), "win", { sc: post.sc }); }
+  try { memeAfterMatch(f, m); } catch (e) { console.error(e); }
 }
 function toggleLike(id) {
   const S = soc(), post = S.posts.concat(S.npc).find((x) => x.id === id); if (!post) return;
@@ -196,4 +199,156 @@ function toggleLike(id) {
 function socialExport() {
   if (G.mode !== "career" || !G.career || !G.career.social) return [];
   return G.career.social.posts.slice(0, 5).map((x) => ({ t: x.type, c: x.cap, l: x.likes, at: x.at || Date.now(), sc: x.sc || null }));
+}
+
+// ---------- media accounts, transfers, news, memes ----------
+// The transfer journalist is a made-up character. Change the name here if you like.
+const JOURNALIST = { name: "Fabio Ramone", handle: "fabio.ramone" };
+const ACCOUNTS = {
+  jour: { h: JOURNALIST.handle, n: JOURNALIST.name, av: "🚨", sub: "Transfer news · Here we go!", v: true },
+  news: { h: "kora.news", n: "Kora News", av: "📰", sub: "Football news", v: true },
+  stats: { h: "kora.stats", n: "Kora Stats", av: "📊", sub: "Numbers & records", v: true },
+  memes: { h: "kora.memes", n: "Kora Memes", av: "😂", sub: "Football memes", v: false },
+};
+Object.assign(POST_TYPES, {
+  transfer: { n: "Transfer", em: "🚨", bg: ["#0b132b", "#1c2541"], m: 1.3, npc: true, caps: ["Dream come true. New chapter ✍️", "Proud to be here", "Let's make history"] },
+  news: { n: "News", em: "📰", bg: ["#f4f1ea", "#e9e4d8"], m: 1, npc: true, caps: [] },
+  stats: { n: "Stats", em: "📊", bg: ["#111827", "#1f2937"], m: 1, npc: true, caps: [] },
+  meme: { n: "Meme", em: "😂", bg: ["#ffffff", "#f1f1f1"], m: 1.2, npc: true, caps: [] },
+  trophy: { n: "Trophy", em: "🏆", bg: ["#7a5a00", "#e3b62e"], m: 1.6, npc: true, caps: ["CHAMPIONS 🏆", "We did it!!", "Dreams come true"] },
+  award: { n: "Award", em: "🏅", bg: ["#1d2b53", "#3a4f8f"], m: 1.4, npc: true, caps: ["Grateful for this award 🙏", "This one's for the team", "Hard work pays off"] },
+  wedding: { n: "Wedding", em: "💍", bg: ["#f8c8dc", "#fbe3ec"], m: 1.5, npc: true, caps: ["Forever starts today 💍", "Married my best friend", "Mr & Mrs ❤️"] },
+  baby: { n: "Baby", em: "👶", bg: ["#bde0fe", "#e7f2ff"], m: 1.5, npc: true, caps: ["Welcome to the world, little one 👶", "Best day of my life", "Daddy mode on"] },
+  injury: { n: "Injury", em: "🩹", bg: ["#6c757d", "#adb5bd"], m: 1.1, npc: true, caps: ["Setbacks make comebacks 💪", "I'll be back stronger", "Thank you for the messages"] },
+  legend: { n: "Legend", em: "⭐", bg: ["#7a5a00", "#f2c230"], m: 1.6, npc: true, caps: ["This club is my home ❤️", "Forever grateful", "Legend status 🙏"] },
+  record: { n: "Record", em: "📈", bg: ["#14213d", "#264653"], m: 1.4, npc: true, caps: ["History made 📈", "Records are there to be broken", "Couldn't do it without my teammates"] },
+});
+Object.assign(CM, {
+  transfer: ["WELCOME {ln}!! 🔥", "What a signing", "Overpaid tbh 😬", "Here we go!! 🚨", "He never misses", "Club is moving 💪", "Finally!!!", "Medical when? 🏥"],
+  news: ["Wow", "Didn't see that coming 😳", "Source?", "Big if true", "Ya salam"],
+  stats: ["{ln} cooking 🔥", "Numbers don't lie", "Where's my guy??", "Underrated"],
+  meme: ["😂😂😂", "I'm crying 😭", "Delete this 💀", "Tag him 😂", "Not the {ln} slander 😭"],
+  trophy: ["CHAMPIONS 🏆🏆", "What a season!!", "Deserved ❤️"],
+  award: ["Deserved 👑", "Robbed others tbh 😂", "Best in the world"],
+  wedding: ["Mabrook!! 💍", "Congrats ❤️", "Alf mabrook 🎉"],
+  baby: ["Mashallah 🤲", "Future Golden Ball winner 👶", "Congrats!!"],
+  injury: ["Get well soon king 🙏", "Come back stronger 💪", "We need you back"],
+  legend: ["LEGEND 👑", "Build him a statue", "Forever ours ❤️"],
+  record: ["History 📈", "GOAT", "Untouchable"],
+});
+const accPost = (acc, type, cap, extra = {}) => { const post = makePost(`acc:${acc}`, type, cap, extra); addNpc(post); return post; };
+
+// transfers from anywhere in the world, covered by the journalist
+function onTransfer(p, from, to, fee) {
+  if (!G || G.mode !== "career" || !G.career || !G.career.life) return;
+  const me = pl(G.userPlayer), S = soc();
+  const mine = p.id === G.userPlayer, myClub = me && me.club >= 0 ? me.club : null;
+  const r = typeof rivalOf === "function" ? rivalOf() : null;
+  const notable = mine || fee >= 15e6 || to.id === myClub || (from && from.id === myClub) || (r && p.id === r.id) || (me && me.club >= 0 && club(me.club).lg === to.lg && fee >= 3e6);
+  if (!notable || p.loan) return;
+  S.tq = S.tq || [];
+  const item = { p: p.id, n: fullName(p), ln: p.ln, from: from ? from.id : null, to: to.id, fee, ce: p.ce, o: p.o, mine };
+  if (mine) { postTransfer(item); if (typeof UI !== "undefined" && typeof openModal === "function") setTimeout(() => openModal("hwg", item), 450); }
+  else { S.tq.push(item); if (S.tq.length > 30) S.tq.shift(); }
+}
+function postTransfer(t) {
+  const to = club(t.to), from = t.from != null ? club(t.from) : null;
+  const likes = Math.round(30000 + (t.fee / 1e6) * 9000 + Math.pow(Math.max(0, t.o - 55), 2) * 120) * (t.mine ? 2 : 1);
+  const cap = `HERE WE GO! ${t.n} to ${to.name}, deal done${t.fee ? ` for ${money(t.fee)}` : " on a free"}${from ? ` from ${from.name}` : ""}. Contract until ${(t.ce || G.season + 3) + 1}. ✅🔴 #herewego`;
+  const post = accPost("jour", "transfer", cap, { likes, ncm: Math.round(likes * 0.02), from: t.from, to: t.to, pn: t.ln, v: rnd() * 3 | 0 });
+  post.cm = genComments("transfer", 0.4, 4, { ln: t.ln });
+  return post;
+}
+function postRumour() {
+  const me = pl(G.userPlayer);
+  const offer = G.inbox.find((m) => m.act && m.act.kind === "coffer" && !m.done && !m.rumoured);
+  if (offer && me) {
+    offer.rumoured = true; const c = club(offer.act.cid);
+    const post = accPost("jour", "transfer", `EXCLUSIVE: ${c.name} have made an official approach for ${fullName(me)}. Talks with his camp ongoing. 🔴⏳ #exclusive`, { likes: Math.round(soc().followers * 0.5 + 20000), from: me.club >= 0 ? me.club : null, to: c.id, rumour: true, pn: me.ln });
+    post.cm = genComments("transfer", 0.3, 4, me); return;
+  }
+  if (rnd() > 0.35) return;
+  const stars = Object.values(G.players).filter((q) => q.o >= 82 && q.club >= 0 && typeof q.club === "number" && q.id !== G.userPlayer);
+  if (!stars.length) return;
+  const q = pick(stars), buyers = G.clubs.filter((c) => c.id !== q.club && c.rep >= club(q.club).rep - 2 && c.rep >= 78);
+  if (!buyers.length) return;
+  const c = pick(buyers);
+  const post = accPost("jour", "transfer", `${c.name} are exploring a move for ${fullName(q)}. Initial talks with ${club(q.club).name}, nothing agreed yet. 🔴 #exclusive`, { likes: Math.round(20000 + q.o * 400), from: q.club, to: c.id, rumour: true, pn: q.ln });
+  post.cm = genComments("transfer", 0.2, 3, q);
+}
+function mediaWeekly() {
+  const S = soc(), me = pl(G.userPlayer);
+  // the biggest deals of the week
+  if (S.tq && S.tq.length) { S.tq.sort((a, b) => b.fee - a.fee); S.tq.splice(0, 3).forEach(postTransfer); if (S.tq.length > 12) S.tq.length = 12; }
+  postRumour();
+  // general news
+  const fresh = (G.news || []).filter((n) => n.s * 400 + n.d > (S.newsAt || 0));
+  if (fresh.length) {
+    S.newsAt = Math.max(...fresh.map((n) => n.s * 400 + n.d));
+    fresh.filter((n) => !/ joins /.test(n.t)).slice(0, 2).forEach((n) => { const post = accPost("news", "news", n.b || n.t, { head: n.t, likes: ri(4000, 40000), v: rnd() * 3 | 0 }); post.cm = genComments("news", 0.1, 3, {}); });
+  }
+  try { randomNews(); } catch (e) { console.error(e); }
+  // league top scorers every other week
+  if (me && me.club >= 0 && G.day > 40 && (S.statW = (S.statW || 0) + 1) % 2 === 0) {
+    const lg = G.leagues[club(me.club).lg];
+    if (lg) {
+      const rows = Object.values(G.players).filter((q) => q.club >= 0 && typeof q.club === "number" && club(q.club).lg === lg.id && q.st.lg > 0).sort((a, b) => b.st.lg - a.st.lg).slice(0, 4).map((q) => [q.ln, q.st.lg, q.id === me.id]);
+      if (rows.length) { const post = accPost("stats", "stats", `Top scorers in the ${lg.name} so far 🔝⚽`, { rows, title: "TOP SCORERS", likes: ri(6000, 30000) }); post.cm = genComments("stats", 0.3, 3, me); }
+    }
+  }
+}
+function memeAfterMatch(f, m) {
+  const me = pl(G.userPlayer), L = G.career.last; if (!me || !L || L.f !== f.i) return;
+  let post = null;
+  if (L.r < 5.9 && rnd() < 0.6) post = accPost("memes", "meme", `${me.ln} today 💀`, { top: `${me.ln.toUpperCase()} BEFORE THE MATCH: "I'M THE BEST"`, bot: `ALSO ${me.ln.toUpperCase()}: ${L.r.toFixed(1)} RATING`, em: pick(["🤡", "😭", "🗑️"]), likes: ri(20000, 90000) });
+  else if (L.g >= 2 && rnd() < 0.6) post = accPost("memes", "meme", `Nobody can stop ${me.ln} 😭`, { top: "DEFENDERS WHEN", bot: `${me.ln.toUpperCase()} GETS THE BALL`, em: pick(["😱", "🏃‍♂️💨", "😭"]), likes: ri(30000, 120000) });
+  if (post) post.cm = genComments("meme", 0.2, 4, me);
+}
+
+// ---------- posting about something that just happened ----------
+const MOMENT_KINDS = [
+  [/here we go|welcome to|you've joined|joined .* on loan|back home|comes home|comes out of retirement/i, "transfer"],
+  [/legend/i, "legend"], [/record/i, "record"], [/married|wedding/i, "wedding"], [/born|baby|son|daughter/i, "baby"],
+  [/golden ball|golden boot|golden boy|player of the season|team of the season|award/i, "award"],
+  [/win the|won the|champions|trophy|cup winners/i, "trophy"], [/injur|knock/i, "injury"], [/hat-trick|scores \d|masterclass|runs the show/i, "goal"],
+  [/charity|fan .* promise|promise kept/i, "charity"], [/car|lamborghini|ferrari|mercedes|porsche/i, "car"], [/villa|apartment|house|mansion/i, "home"],
+];
+function recentMoments() {
+  const C = G.career, now = absDay(), out = [], seen = new Set();
+  const add = (t, at) => { if (!t || seen.has(t)) return; const k = MOMENT_KINDS.find(([re]) => re.test(t)); if (!k) return; seen.add(t); out.push({ t, kind: k[1], at }); };
+  (C.press || []).forEach((h) => { const at = h.s * 400 + h.d; if (now - at <= 21) add(h.t, at); });
+  G.inbox.forEach((m) => { if (m.s != null && m.d != null && now - (m.s * 400 + m.d) > 21) return; if (["career", "life"].includes(m.type)) add(m.t, m.s != null ? m.s * 400 + m.d : now); });
+  (C.trophies || []).filter((t) => t.s >= G.season - 1).forEach((t) => add(`Won the ${t.n}`, now));
+  (C.awards || []).filter((a) => a.s >= G.season - 1).forEach((a) => add(`${a.n} award`, now));
+  const used = new Set((soc().posts || []).map((x) => x.moment));
+  return out.filter((x) => !used.has(x.t)).slice(0, 8);
+}
+
+// news made from what's happening around the world this week
+function randomNews() {
+  const S = soc(), me = pl(G.userPlayer), out = [];
+  const say = (head, cap, extra = {}) => out.push([head, cap, extra]);
+  // star injuries
+  S.injSeen = S.injSeen || {};
+  const hurt = Object.values(G.players).filter((q) => q.o >= 80 && q.inj >= 14 && q.club >= 0 && typeof q.club === "number" && !S.injSeen[q.id]);
+  if (hurt.length) { const q = pick(hurt); S.injSeen[q.id] = G.season * 400 + G.day; const wk = Math.max(2, Math.round(q.inj / 7)); say(`${fullName(q)} ruled out for ${wk} weeks`, `Blow for ${club(q.club).name}: ${fullName(q)} will miss around ${wk} weeks with an injury. 🏥`); }
+  for (const k in S.injSeen) if (G.season * 400 + G.day - S.injSeen[k] > 120) delete S.injSeen[k];
+  if (me && me.club >= 0 && G.day > 30) {
+    const lg = G.leagues[club(me.club).lg];
+    if (lg) {
+      const order = lg.clubs.slice().sort((a, b) => lg.table[b][6] - lg.table[a][6] || (lg.table[b][4] - lg.table[b][5]) - (lg.table[a][4] - lg.table[a][5]));
+      // new leader
+      if (S.leader !== order[0] && lg.table[order[0]][0] >= 3) { if (S.leader != null) say(`${club(order[0]).name} go top of the ${lg.name}`, `New leaders! ${club(order[0]).name} are top of the ${lg.name} with ${lg.table[order[0]][6]} points. 🔝`); S.leader = order[0]; }
+      // shock results this week
+      const rank = (c) => order.indexOf(c) + 1, n = order.length;
+      const week = G.fx.filter((f) => f.p && f.c === lg.id && f.d > G.day - 7 && f.d <= G.day);
+      const shock = week.find((f) => { const hw = f.hg > f.ag, aw = f.ag > f.hg; return (hw && rank(f.h) > n * 0.6 && rank(f.a) <= 3) || (aw && rank(f.a) > n * 0.6 && rank(f.h) <= 3); });
+      if (shock) { const w = shock.hg > shock.ag ? shock.h : shock.a, l = w === shock.h ? shock.a : shock.h; say(`Shock! ${club(w).name} beat ${club(l).name}`, `Upset of the week: ${club(shock.h).name} ${shock.hg}–${shock.ag} ${club(shock.a).name}. 😱`); }
+      // manager under pressure
+      const bottom = order[n - 1];
+      S.pressed = S.pressed || {};
+      if (rnd() < 0.25 && lg.table[bottom][0] >= 6 && absDay() - (S.pressed[bottom] || -999) > 56 && (S.pressed[bottom] = absDay())) say(`${club(bottom).name} manager under pressure`, `Bottom of the ${lg.name} after ${lg.table[bottom][0]} games, the ${club(bottom).name} board are losing patience. ⏳`);
+    }
+  }
+  out.slice(0, 2).forEach(([head, cap]) => { const post = accPost("news", "news", cap, { head, likes: ri(5000, 45000) }); post.cm = genComments("news", 0.1, 3, {}); });
 }
