@@ -27,6 +27,7 @@ function createMatch(f, opts = {}) {
   m.sides.forEach((s, i) => { s.on.forEach((o) => { m.rt[o.pid] = 6.4; m.onAt[o.pid] = 0; m.sideOf[o.pid] = i; }); s.bench.forEach((id) => (m.sideOf[id] = i)); });
   m.inter = opts.inter && G.userPlayer && m.sideOf[G.userPlayer] != null ? G.userPlayer : null;
   m.moments = 0;
+  m.big = m.inter && typeof bigMatchInfo === "function" ? bigMatchInfo(f) : null;
   calcStrength(m);
   return m;
 }
@@ -78,11 +79,27 @@ const MOMENTS = {
   header: { q: () => "Corner kick. You're arriving at the far post.", o: [["power", "Power header at goal"], ["down", "Head it down into the box"], ["back", "Nod it back across"]] },
   gkpen: { q: () => "Penalty to them. Their taker places the ball. Which way do you go?", o: [["left", "Dive left"], ["middle", "Stay big in the middle"], ["right", "Dive right"]] },
   gk1v1: { q: () => "Their striker is clean through on you!", o: [["rush", "Rush out"], ["stay", "Stay on your line"], ["spread", "Make yourself big"]] },
+  // first steps of big-match chains
+  build: { q: () => "You pick the ball up 35 metres out. A defender is stepping up to meet you.", o: [["drive", "Drive at him"], ["onetwo", "Play a one-two"], ["switch", "Switch the play"]] },
+  defbuild: { q: () => "Their best attacker is running straight at you.", o: [["show", "Show him down the line"], ["press", "Press him high"], ["wait", "Wait for cover"]] },
+  gkbuild: { q: () => "A dangerous cross is swinging into your box.", o: [["claim", "Come and claim it"], ["punch", "Punch it clear"], ["line", "Stay on your line"]] },
 };
+const CHAIN_NEXT = { drive: ["oneone", "edge"], onetwo: ["oneone"], switch: ["counter", "edge"] };
 function makeMoment(m, s, o) {
   const g = POS_GROUP[o.pos];
+  const late = (m.phase === "2H" || m.phase === "ET") && m.min >= 80 && Math.abs(m.g[0] - m.g[1]) <= 1;
+  const press = (m.big ? 1 : 0) + (late ? 1 : 0);
+  if (m.big && rnd() < 0.55) return { type: g === "GK" ? "gkbuild" : g === "DEF" ? "defbuild" : "build", s, pid: o.pid, dist: ri(17, 34), min: m.min, step: 1, steps: 2, press, late };
   const type = g === "GK" ? wpick([["gkpen", 0.25], ["gk1v1", 0.75]]) : g === "DEF" ? wpick([["tackle", 0.55], ["header", 0.45]]) : g === "MID" ? wpick([["pen", 0.06], ["fk", 0.3], ["edge", 0.32], ["counter", 0.2], ["oneone", 0.12]]) : wpick([["pen", 0.08], ["fk", 0.18], ["oneone", 0.32], ["edge", 0.22], ["counter", 0.2]]);
-  return { type, s, pid: o.pid, dist: ri(17, 34), min: m.min };
+  return { type, s, pid: o.pid, dist: ri(17, 34), min: m.min, press, late };
+}
+// Pressure helps players in form and hurts players out of form.
+function pressureMod(mo, me) {
+  if (!mo.press || mo.pid !== G.userPlayer) return 0;
+  const f = me.form.length ? avg(me.form.slice(-4)) : 6.5;
+  let d = mo.press * (f >= 7 ? 0.02 : f < 6.4 ? -0.05 : -0.015);
+  if (d < 0 && typeof traitOf === "function" && traitOf() && traitOf().leader) d /= 2;
+  return d;
 }
 function mateOf(m, s, pid, w = SCORE_W) { const l = m.sides[s].on.filter((o) => o.pid !== pid && o.pos !== "GK"); return l.length ? wPickOn(l, (o) => w[o.pos]).pid : null; }
 function resolveMoment(m, choice) {
@@ -93,9 +110,29 @@ function resolveMoment(m, choice) {
   const say = (txt, good) => { addEv(m, { t: "mom", s, p: mo.pid, txt, good }); return { txt, good }; };
   const rate = (d) => { m.rt[mo.pid] = (m.rt[mo.pid] || 6.4) + d; };
   const keeperSide = () => wpick([["left", 0.42], ["middle", 0.16], ["right", 0.42]]);
-  const tb = typeof traitBonus === "function" && mo.pid === G.userPlayer ? traitBonus(mo.type, choice) : 0;
+  const tb = (typeof traitBonus === "function" && mo.pid === G.userPlayer ? traitBonus(mo.type, choice) : 0) + pressureMod(mo, me) + (mo.bonus || 0);
+  const chain = (type, bonus, txt) => { m.pending = { type, s, pid: mo.pid, dist: ri(17, 26), min: m.min, step: 2, steps: 2, press: mo.press, late: mo.late, bonus }; return say(txt, true); };
+  const fin = (r) => { if (m.big && r && mo.pid === G.userPlayer && !m.pending) { m.bigRes = m.bigRes || [0, 0]; m.bigRes[r.good ? 0 : 1]++; } return r; };
   const P = (x) => rnd() < clamp(x + tb - 0.03, 0.02, 0.97);
+  return fin(resolveInner());
+  function resolveInner() {
   switch (mo.type) {
+    case "build": {
+      const ok = choice === "drive" ? P(0.45 + (a[3] - 70) * 0.01 + (a[0] - 70) * 0.004) : choice === "onetwo" ? P(0.5 + (a[2] - 70) * 0.01) : P(0.7 + (a[2] - 70) * 0.006);
+      if (!ok) { rate(-0.1); return say(choice === "drive" ? "He reads it and takes the ball off you." : choice === "onetwo" ? "The return pass is cut out." : "The switch is overhit and goes out.", false); }
+      const nx = pick(CHAIN_NEXT[choice]), bonus = choice === "drive" ? 0.06 : choice === "onetwo" ? 0.04 : 0;
+      return chain(nx, bonus, choice === "drive" ? "You burst past him! Keep going..." : choice === "onetwo" ? "The one-two works and you're in behind!" : "The switch finds space. The move goes on...");
+    }
+    case "defbuild": {
+      const ok = choice === "show" ? P(0.55 + (a[4] - 70) * 0.01) : choice === "press" ? P(0.45 + (a[4] - 70) * 0.008 + (a[0] - 70) * 0.008) : P(0.62 + (a[4] - 70) * 0.006);
+      if (ok) { rate(choice === "press" ? 0.4 : 0.25); return say(choice === "press" ? "You win it high up the pitch. The crowd roars." : choice === "show" ? "You show him wide and he runs out of room." : "Cover arrives and you crowd him out.", true); }
+      return chain("tackle", 0, "He's past you... you chase back. It's down to you!");
+    }
+    case "gkbuild": {
+      const ok = choice === "claim" ? P(0.55 + (a[6] - 70) * 0.012) : choice === "punch" ? P(0.68 + (a[6] - 70) * 0.006) : P(0.5);
+      if (ok) { rate(choice === "claim" ? 0.35 : 0.15); return say(choice === "claim" ? "You come and catch it cleanly. Total command." : choice === "punch" ? "You punch it well clear." : "The header goes over.", true); }
+      return chain("gk1v1", 0, "It drops to their striker inside the box!");
+    }
     case "pen": {
       const k = keeperSide();
       const miss = choice === "middle" ? 0.03 : clamp(0.12 - (a[1] - 70) * 0.004, 0.03, 0.2);
@@ -171,6 +208,7 @@ function resolveMoment(m, choice) {
     }
   }
   return null;
+  }
 }
 
 // Advance one minute. Returns events created this minute.
@@ -233,9 +271,9 @@ function stepMatch(m) {
     }
   }
   // a decision for the user's player
-  if (m.inter && !m.pending && m.moments < 4 && (m.phase === "1H" || m.phase === "2H" || m.phase === "ET")) {
+  if (m.inter && !m.pending && m.moments < (m.big ? 6 : 4) && (m.phase === "1H" || m.phase === "2H" || m.phase === "ET")) {
     const s = m.sideOf[m.inter], o = s != null ? m.sides[s].on.find((x) => x.pid === m.inter) : null;
-    if (o) { const g = POS_GROUP[o.pos]; const per90 = g === "ATT" ? 1.5 : g === "MID" ? 1.25 : 1.0; if (rnd() < per90 / 90) m.pending = makeMoment(m, s, o); }
+    if (o) { const g = POS_GROUP[o.pos]; const per90 = (g === "ATT" ? 1.5 : g === "MID" ? 1.25 : 1.0) * (m.big ? 1.3 : 1); if (rnd() < per90 / 90) m.pending = makeMoment(m, s, o); }
   }
   // AI substitutions
   for (let s = 0; s < 2; s++) {
@@ -385,6 +423,7 @@ function finishMatch(m) {
     G.career.last = { f: f.i, r: m.rt[p.id], g, a };
     if (typeof careerAfterMatch === "function" && !f.nt) careerAfterMatch(f, m);
   }
+  if (isUserFx(f) && typeof dramaAfterMatch === "function") { try { dramaAfterMatch(f, m); } catch (e) { console.error(e); } }
   return m;
 }
 function playFixture(f) {

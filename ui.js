@@ -99,6 +99,7 @@ const ICON = {
 };
 ICON.phone = '<rect x="6" y="2.5" width="12" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10.5 18.5h3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 8h6M9 11.5h4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>';
 ICON.life = '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>';
+ICON.cabinet = '<path d="M7 4h10v4a5 5 0 0 1-10 0z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
 
 // ---------- toast / modal ----------
@@ -134,7 +135,7 @@ function render() {
   const unread = G.inbox.filter((m) => !m.read).length;
   const nav = G.mode === "manager"
     ? [["home", "Home"], ["inbox", "Inbox"], ["squad", "Squad"], ["tactics", "Tactics"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["transfers", "Transfers"], ["club", "Club"], ["phone", "Phone"], ["sep"], ["saves", "Save & menu"]]
-    : [["home", "Home"], ["inbox", "Inbox"], ["career", "My career"], ["life", "Life"], ["squad", "Squad"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["world", "Players"], ["phone", "Phone"], ["sep"], ["saves", "Save & menu"]];
+    : [["home", "Home"], ["inbox", "Inbox"], ["career", "My career"], ["cabinet", "Cabinet"], ["life", "Life"], ["squad", "Squad"], ["fixtures", "Fixtures"], ["comps", "Competitions"], ["world", "Players"], ["phone", "Phone"], ["sep"], ["saves", "Save & menu"]];
   const today = userFxOn(G.day);
   const retiredLock = G.mode === "career" && G.career && G.career.retired && !G.career.pundit;
   const goLabel = retiredLock ? "Retired" : today && !today.p ? "Match day" : "Continue";
@@ -143,6 +144,7 @@ function render() {
   <header class="topbar">
     <div class="club">${p ? faceHTML(p, 38) : crest(c, 34)}<div style="min-width:0"><div class="nm">${esc(p ? fullName(p) : c.name)}</div><div class="small muted">${esc(p ? c.name + " · " + p.pos : leagueOf(c).name)}</div></div></div>
     <div class="date"><b>${fmtDate(G.day, { wd: true, y: true })}</b><span class="small muted">${G.season}/${String((G.season + 1) % 100).padStart(2, "0")} season${UI.lastSaved ? " · saved" : ""}</span></div>
+    <button class="btn go ff" data-a="ff" ${retiredLock ? "disabled" : ""} title="Simulate ordinary matches and stop at the next big moment" aria-label="Fast-forward to the next big moment">⏩</button>
     <button class="btn pri go" data-a="continue" ${retiredLock ? "disabled" : ""}>${goLabel}</button>
   </header>
   <nav class="rail" aria-label="Sections">${nav.map(([k, l]) => k === "sep" ? '<div class="sep"></div>' : `<button class="${UI.page === k ? "on" : ""}" data-a="nav" data-p="${k}">${icon(k === "world" ? "world" : k)}<span>${l}</span>${k === "inbox" && unread ? `<span class="badge-n">${unread}</span>` : ""}${k === "phone" && Online.totalUnread() ? `<span class="badge-n">${Online.totalUnread()}</span>` : ""}</button>`).join("")}</nav>
@@ -170,6 +172,7 @@ function renderStart() {
     <button class="choice" data-a="startMgr"><span class="chip">Manager</span><h3>Take charge of a club</h3><span class="muted">Pick any of the real clubs across Europe and Africa: transfers, tactics, the board and the trophies are yours.</span></button>
     <button class="choice" data-a="startCustom"><span class="chip">Manager</span><h3>Create your own club</h3><span class="muted">Name it, colour it, name every player, and enter it into the division of your choice.</span></button>
     <button class="choice" data-a="startCareer"><span class="chip">Player career</span><h3>Become a player</h3><span class="muted">Design your player's face or upload a photo, pick a starting club, train, earn moves and win awards.</span></button>
+    <button class="choice" data-a="startShort"><span class="chip">Short career</span><h3>Five seasons to glory</h3><span class="muted">Start at 28 as a famous star at a big club. You have five seasons to win a trophy before you retire.</span></button>
   </div>
   <div class="grid ${IN_CLAUDE ? "g2" : ""}">
     <div class="panel"><div class="panel-h"><h3>Saves on this device</h3><label class="btn sm" for="importFile">Import save file</label><input type="file" id="importFile" accept=".json,.gz,application/json" hidden data-c="import"></div>
@@ -224,25 +227,26 @@ function startCustom() {
   <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn pri go" data-a="beginCustom">Found the club</button></div></div>`;
 }
 // Everyone starts equal: same rating and ceiling. Potential only grows through work (see reviewPotential).
-const START_OVR = 54, START_POT = 78;
+const START_OVR = 54, START_POT = 78, SHORT_OVR = 80;
 function startCareer() {
   const st = UI.start;
   if (!st.cp) st.cp = { fn: "", ln: "", nat: "EGY", pos: "ST", foot: "R", age: 17, tal: 1, face: genFace("EGY", 17), ph: null, lg: "EGY1" };
   const cp = st.cp;
-  const clubs = clubsOfLeagueData(cp.lg).filter((c) => c.rep <= 74).sort((a, b) => b.rep - a.rep);
-  const myO = START_OVR - (18 - cp.age);
+  const short = !!st.short;
+  const clubs = clubsOfLeagueData(cp.lg).filter((c) => (short ? c.rep >= 66 : c.rep <= 74)).sort((a, b) => b.rep - a.rep);
+  const myO = short ? SHORT_OVR : START_OVR - (18 - cp.age);
   const role = (rep) => (rep - myO <= 5 ? "Likely starter" : rep - myO <= 10 ? "Squad player" : "Youth team");
   const opt = (k, arr, cur) => arr.map(([v, l]) => `<button class="${cur === v ? "on" : ""}" data-a="cpSet" data-k="${k}" data-v="${v}">${l}</button>`).join("");
   const f = cp.face;
   const sw = (i, col, k) => `<button data-a="cpFace" data-i="${i}" data-v="${k}" aria-label="Option ${k}" style="width:28px;height:28px;border-radius:50%;border:2px solid ${f[i] === k ? "var(--ink)" : "var(--line)"};background:${col};cursor:pointer"></button>`;
-  return `<div class="start"><div class="page-h"><div><h4>New player career</h4><h1>Create your player</h1></div><button class="btn" data-a="startBack">Back</button></div>
+  return `<div class="start"><div class="page-h"><div><h4>${short ? "Short career · 5 seasons" : "New player career"}</h4><h1>${short ? "Create your star" : "Create your player"}</h1></div><button class="btn" data-a="startBack">Back</button></div>
   <div class="grid g21"><div class="panel stack">
     <div class="row"><label class="f" style="flex:1;min-width:150px">First name<input type="text" id="cpFn" value="${esc(cp.fn)}" data-c="cpField" data-k="fn"></label><label class="f" style="flex:1;min-width:150px">Last name<input type="text" id="cpLn" value="${esc(cp.ln)}" data-c="cpField" data-k="ln"></label>
     <label class="f" style="flex:1;min-width:150px">Nationality<select data-c="cpField" data-k="nat">${natOptions(cp.nat)}</select></label></div>
     <div class="row"><span class="small muted" style="width:72px">Position</span><div class="seg">${opt("pos", POSITIONS.map((p) => [p, p]), cp.pos)}</div></div>
     <div class="row"><span class="small muted" style="width:72px">Foot</span><div class="seg">${opt("foot", [["R", "Right"], ["L", "Left"]], cp.foot)}</div>
-    <span class="small muted" style="margin-left:12px">Age</span><div class="seg">${opt("age", [[16, "16"], [17, "17"], [18, "18"]], cp.age)}</div></div>
-    <p class="small muted" style="margin:0">Every player starts equal. How good you become depends only on how you train, play and live.</p>
+    ${short ? "" : `<span class="small muted" style="margin-left:12px">Age</span><div class="seg">${opt("age", [[16, "16"], [17, "17"], [18, "18"]], cp.age)}</div>`}</div>
+    <p class="small muted" style="margin:0">${short ? `You start at 28, rated ${SHORT_OVR}, already famous. You have five seasons to win a trophy, then you retire.` : "Every player starts equal. How good you become depends only on how you train, play and live."}</p>
     <div><h4 style="margin:6px 0 8px">Playstyle trait</h4><div class="traits">${traitsFor(cp.pos).map(([k, t]) => `<button class="trait ${cp.trait === k ? "on" : ""}" data-a="cpSet" data-k="trait" data-v="${k}"><b>${esc(t.n)}</b><span class="small muted">${esc(t.d)}</span></button>`).join("")}</div></div>
     <div class="row"><label class="f" style="flex:1;min-width:220px">Start in<select data-c="cpField" data-k="lg">${leagueOptions(cp.lg)}</select></label><label class="f" style="flex:1;min-width:160px">Save name<input type="text" id="saveName3" value="${esc(st.saveName || "")}" data-c="startField" data-k="saveName"></label></div><label class="row small" style="gap:8px;align-items:flex-start;max-width:520px"><input type="checkbox" id="realToggle" ${UI.start.real !== false ? "checked" : ""} data-c="startReal" style="margin-top:3px"><span><b>Real players</b><br><span class="muted">${Object.values(REAL_PLAYERS).reduce((s, x) => s + x.trim().split("\n").length, 0)} real players at 60+ clubs, using 2025/26 squads and approximate ratings. Everyone else is generated. Untick for an all-fictional world.</span></span></label>
     <div><h4 style="margin:6px 0 8px">Starting club</h4><div class="clublist">${clubs.map((c) => `<button class="clubpick ${cp.club === c.key ? "on" : ""}" data-a="cpClub" data-k="${c.key}">${crest(c, 26)}<span><b>${esc(c.name)}</b><br>${stars(c.rep)} <span class="small muted">${role(c.rep)}</span></span></button>`).join("") || `<div class="empty">No smaller clubs in this league. Try another.</div>`}</div></div>
@@ -554,6 +558,38 @@ PAGES.club = () => {
   </div></div>`;
 };
 
+PAGES.cabinet = () => {
+  if (G.mode !== "career") return PAGES.home();
+  const p = pl(G.userPlayer), cr = G.career, c = p.club >= 0 ? club(p.club) : null;
+  const group = (list) => { const by = {}; list.forEach((t) => { (by[t.n] = by[t.n] || []).push(t.s); }); return Object.entries(by).sort((a, b) => b[1].length - a[1].length); };
+  const shelf = (list, em) => list.length ? `<div class="cab">${group(list).map(([n, ss]) => `<div class="cabitem"><div class="cabicon">${em}${ss.length > 1 ? `<span>×${ss.length}</span>` : ""}</div><b>${esc(n)}</b><span class="small muted">${ss.sort().map((s) => `${s}/${(s + 1) % 100}`).join(", ")}</span></div>`).join("")}</div>` : `<div class="empty">Nothing here yet.</div>`;
+  const all = p.hist.concat(p.st.ap ? [{ s: G.season, g: p.st.g, as: p.st.as, ap: p.st.ap, r: p.st.rs / p.st.ap, o: p.o }] : []);
+  const best = (k, min = 0) => all.filter((h) => h.ap >= min).reduce((b, h) => (h[k] > (b ? b[k] : -1) ? h : b), null);
+  const bg = best("g"), ba = best("as"), br = best("r", 10);
+  const recRow = (lab, val, sub) => `<div class="facrow"><div><b>${lab}</b><div class="small muted">${sub || ""}</div></div><b class="disp" style="font-size:1.3rem">${val}</b></div>`;
+  const chase = (lab, rec, mine) => { const pct = clamp(Math.round((mine / Math.max(1, rec.v)) * 100), 0, 100); const mineHeld = rec.n === fullName(p); return `<div><div class="row" style="justify-content:space-between"><span class="small"><b>${esc(lab)}</b> · ${mineHeld ? "held by you" : `record ${rec.v} (${esc(rec.n)}${rec.s ? `, ${rec.s}` : ""})`}</span><b class="small">${mine} / ${rec.v}</b></div><div class="bar"><i style="width:${pct}%;background:${mineHeld ? "var(--win)" : "var(--accent)"}"></i></div></div>`; };
+  const lg = c && G.leagues[c.lg];
+  const N = cr.night;
+  return `<div class="page-h"><div><h4>${esc(fullName(p))}</h4><h1>Trophy cabinet</h1></div></div>
+  <div class="grid g21"><div class="stack" style="gap:16px">
+    <div class="panel"><h3>Team trophies · ${cr.trophies.length}</h3>${shelf(cr.trophies, "🏆")}</div>
+    <div class="panel"><h3>Individual awards · ${cr.awards.length}</h3>${shelf(cr.awards, "🏅")}</div>
+    ${N ? `<div class="panel"><h3>Last awards night · ${N.s}/${(N.s + 1) % 100}</h3><div class="small">Golden Ball: ${N.myBall ? `you finished <b>${ordinal(N.myBall)}</b>` : "you weren't ranked (play 15+ games)"}${N.rv && N.rvBall ? `, your rival ${ordinal(N.rvBall)}` : ""}. Golden Boot: ${N.myBoot ? `<b>${ordinal(N.myBoot)}</b> with ${N.myG}` : "not ranked"}.</div></div>` : ""}
+  </div><div class="stack" style="gap:16px">
+    ${c && !cr.retired ? `<div class="panel stack"><h3>Records to chase</h3>${chase(`${c.name}: goals in a season`, clubRec(c).sg, p.st.g)}${chase(`${c.name}: all-time top scorer`, clubRec(c).at, goalsAtClub(p, c.name))}${lg ? chase(`${lg.name}: league goals in a season`, lgRec(lg), p.st.lg) : ""}</div>` : ""}
+    <div class="panel stack" style="gap:6px"><h3>Personal bests</h3>
+      ${recRow("Most goals in a season", bg ? bg.g : 0, bg ? `${bg.s}/${(bg.s + 1) % 100}` : "")}
+      ${recRow("Most assists in a season", ba ? ba.as : 0, ba ? `${ba.s}/${(ba.s + 1) % 100}` : "")}
+      ${recRow("Best average rating", br ? Number(br.r).toFixed(2) : "–", br ? `${br.s}/${(br.s + 1) % 100}, 10+ games` : "10+ games in a season")}
+      ${recRow("Peak overall", Math.max(p.o, ...p.hist.map((h) => h.o)), "")}
+      ${recRow("Hat-tricks", cr.hat || 0, "")}
+      ${recRow("Career goals", all.reduce((s, h) => s + h.g, 0), `in ${all.reduce((s, h) => s + h.ap, 0)} games`)}
+      ${recRow("International", `${p.caps || 0} caps`, `${p.ig || 0} goals`)}
+      ${(cr.legends || []).length ? recRow("Club legend", (cr.legends || []).length, (cr.legends || []).map(esc).join(", ")) : ""}
+      ${cr.rivalH ? recRow("Against your rival", `W${cr.rivalH.w} D${cr.rivalH.d} L${cr.rivalH.l}`, rivalOf() ? esc(fullName(rivalOf())) : "") : ""}
+    </div>
+  </div></div>`;
+};
 PAGES.career = () => {
   const p = pl(G.userPlayer), cr = G.career, c = club(p.club >= 0 ? p.club : G.userClub);
   const attrs = p.pos === "GK" ? [6, 2, 5, 0] : [0, 1, 2, 3, 4, 5];
@@ -597,6 +633,21 @@ function kidRow(k, i) {
   ${k.g === "boy" && a >= 4 && a <= 15 ? `<div class="row" style="margin-top:6px"><label class="small muted" for="train${i}" style="width:54px">Football</label><select id="train${i}" data-c="kidTrain" data-i="${i}" style="flex:1;min-width:200px">${TRAINING.map((t) => `<option value="${t.id}" ${(k.train || 0) === t.id ? "selected" : ""}>${esc(t.n)}${t.wk ? ` · ${money(t.wk)}/wk` : ""}</option>`).join("")}</select></div>` : ""}</div>`;
 }
 function brandBadge(id) { const b = BRAND_BY[id]; return `<span class="brand" style="background:${b.bg};color:${b.fg}">${esc(b.n)}</span>`; }
+function shortBanner(cr) {
+  const S = cr.short; if (!S) return "";
+  const won = cr.trophies.filter((t) => t.s >= S.s0);
+  if (S.done) return `<div class="moment ${S.ok ? "good" : "bad"}" style="margin-bottom:16px"><b>Short career ${S.ok ? "complete" : "over"}.</b> ${S.ok ? `You won ${won.map((t) => esc(t.n)).join(", ")}.` : "No trophy in five seasons."}</div>`;
+  return `<div class="moment" style="margin-bottom:16px"><b>Short career: season ${G.season - S.s0 + 1} of 5.</b> Your mission: win a trophy before you retire at the end of ${S.until}/${(S.until + 1) % 100}. ${won.length ? `Done so far: ${won.map((t) => esc(t.n)).join(", ")}.` : "No trophy yet."}</div>`;
+}
+function rivalPanel(p, cr) {
+  const r = rivalOf(); if (!r || cr.retired) return "";
+  const H = cr.rivalH || { w: 0, d: 0, l: 0 }, ap = (x) => (x.st.ap ? (x.st.rs / x.st.ap).toFixed(2) : "–");
+  const row = (lab, a, b, hiGood = true) => { const na = parseFloat(a), nb = parseFloat(b); const win = isNaN(na) || isNaN(nb) || na === nb ? 0 : (na > nb) === hiGood ? 1 : -1; return `<tr><td class="r"><b style="${win > 0 ? "color:var(--win)" : ""}">${a}</b></td><td class="small muted" style="text-align:center">${lab}</td><td><b style="${win < 0 ? "color:var(--win)" : ""}">${b}</b></td></tr>`; };
+  const duel = cr.duel ? `<div class="small" style="margin-top:8px"><b>War of words:</b> you ${p.st.g + p.st.as - cr.duel.me} vs him ${r.st.g + r.st.as - cr.duel.him} goals + assists, until ${fmtDate(cr.duel.until - G.season * 400)}.</div>` : "";
+  return `<div class="panel" style="margin-bottom:16px"><div class="panel-h"><h3>Your rival</h3><span class="small muted">Head to head: <b>W${H.w} D${H.d} L${H.l}</b></span></div>
+  <div class="row" style="justify-content:space-between;margin-bottom:8px"><div class="row">${faceHTML(p, 40)}<b>You</b></div><div class="row"><span style="text-align:right"><b>${esc(fullName(r))}</b><br><span class="small muted">${esc(r.club >= 0 ? club(r.club).name : "Free agent")} · age ${age(r)}</span></span>${faceHTML(r, 40)}</div></div>
+  <div class="tw"><table class="t"><tbody>${row("Overall", p.o, r.o)}${row("Value", money(p.val), money(r.val))}${row("Apps this season", p.st.ap, r.st.ap)}${row("Goals", p.st.g, r.st.g)}${row("Assists", p.st.as, r.st.as)}${row("Average rating", ap(p), ap(r))}${row("Caps", p.caps || 0, r.caps || 0)}</tbody></table></div>${duel}</div>`;
+}
 function careerStatus(p, cr) {
   const rp = cr.rep == null ? 50 : cr.rep, dc = cr.disc || 0;
   const goals = cr.goals && cr.goals.s === G.season && !cr.retired ? cr.goals.list.map((gl) => { const [v, t] = goalProgress(gl); const pct = clamp(Math.round((v / t) * 100), 0, 100); return `<div><div class="row" style="justify-content:space-between"><span class="small">${v >= t ? "✅ " : ""}${esc(gl.n)}</span><b class="small">${v} / ${t}</b></div><div class="bar"><i style="width:${pct}%;background:${v >= t ? "var(--win)" : "var(--accent)"}"></i></div></div>`; }).join("") : "";
@@ -604,7 +655,7 @@ function careerStatus(p, cr) {
   const cbBanner = cr.comeback && !cr.comebackDone && !cr.retired ? `<div class="moment" style="margin-bottom:16px"><b>The comeback.</b> You came out of retirement to help ${esc(club(cr.comeback.cid).name)}. You retire for good at the end of ${cr.comeback.until}/${(cr.comeback.until + 1) % 100}.</div>` : "";
   const here = !cr.retired && p.club >= 0 ? club(p.club).name : null, inRow = here ? seasonsAtClub(p, here) : 0;
   const legendHTML = (cr.legends || []).length || here ? `<div class="panel" style="margin-bottom:16px"><h3>Club legend</h3>${(cr.legends || []).map((n) => `<span class="chip gold" style="margin:0 6px 6px 0">★ ${esc(n)} legend</span>`).join("")}${here && !(cr.legends || []).includes(here) ? `<div class="small muted">${inRow} of 5 straight seasons and ${goalsAtClub(p, here)} of 100 goals at ${esc(here)}. Reach either one and you become a club legend: the fans forgive more, the manager trusts you, and you get a loyalty raise.</div>` : here ? `<div class="small muted">The ${esc(here)} fans adore you. They forgive your mistakes more easily, and the manager will always trust you.</div>` : ""}</div>` : "";
-  return `${cbBanner}${legendHTML}${cr.fa && !cr.retired ? `<div class="moment" style="margin-bottom:16px"><b>You're a free agent.</b> Your last club sacked you. Offers from smaller clubs arrive in your inbox, and free agents can sign at any time. Keep your nose clean.</div>` : ""}
+  return `${shortBanner(cr)}${cbBanner}${rivalPanel(p, cr)}${legendHTML}${cr.fa && !cr.retired ? `<div class="moment" style="margin-bottom:16px"><b>You're a free agent.</b> Your last club sacked you. Offers from smaller clubs arrive in your inbox, and free agents can sign at any time. Keep your nose clean.</div>` : ""}
   <div class="grid g3" style="margin-bottom:16px">
     <div class="panel stack"><h4>Public image</h4><div class="meter"><div class="bar"><i style="width:${rp}%;background:${rp < 30 ? "var(--loss)" : rp < 50 ? "var(--warn)" : "var(--win)"}"></i></div><b class="small">${repWord(rp)}</b></div><p class="small muted" style="margin:0">Charity, good form and humble interviews help. Scandals, fights and explosive press conferences hurt. Sponsors and big clubs care about it.</p></div>
     <div class="panel stack"><h4>Discipline</h4><div class="meter"><div class="bar"><i style="width:${dc}%;background:${dc >= 60 ? "var(--loss)" : dc >= 40 ? "var(--warn)" : "var(--win)"}"></i></div><b class="small">${discWord(dc)}</b></div><p class="small muted" style="margin:0">Partying, fights, rows with the manager and scandals add up. At 40 you get a warning, at 60 a fine, and at 80 the club terminates your contract.</p></div>
@@ -669,6 +720,18 @@ PAGES.life = () => {
   <div class="row" style="margin-top:10px">${BRANDS.map((b) => brandBadge(b.id)).join("")}</div></div>
   <h3 style="margin-bottom:10px">Spend your money</h3><div class="grid g2">${shop}</div>`;
 };
+function chBubble(code, m) {
+  if (!m.ch || !CHALLENGES[m.ch.type]) return "";
+  if (m.from === G.online.code) return "";
+  const mine = (G.online.ch || []).find((c) => c.id === m.ch.id);
+  if (mine) { const need = CHALLENGES[mine.type].need; return `<div class="small" style="margin-top:4px">${mine.done === "ok" ? "🏆 Completed" : mine.done ? "😩 Failed" : `In progress: ${mine.prog}/${need}`}</div>`; }
+  if (Date.now() - m.at > 7 * 864e5) return `<div class="small muted" style="margin-top:4px">Expired</div>`;
+  return `<button class="btn sm pri" style="margin-top:6px" data-a="acceptCh" data-v="${esc(code)}" data-id="${esc(m.ch.id)}">Accept challenge</button>`;
+}
+function challengesPanel() {
+  const list = (G.online.ch || []).filter((c) => !c.done);
+  return `<div class="panel stack"><h3>Your challenges</h3>${list.length ? list.map((c) => { const d = CHALLENGES[c.type], f = Online.profiles[c.from]; return `<div><div class="row" style="justify-content:space-between"><span class="small"><b>${esc(d.n)}</b> · from ${esc(f ? f.name : c.from)}</span><b class="small">${c.prog}/${d.need}</b></div><div class="bar"><i style="width:${clamp(Math.round((c.prog / d.need) * 100), 0, 100)}%;background:var(--accent)"></i></div><div class="small muted">Ends ${fmtDate(c.until - G.season * 400)}</div></div>`; }).join("") : `<div class="small muted">No active challenges. Open a chat and send one, or accept one a friend sent you.</div>`}<div class="small muted">Completed: ${G.online.chWon || 0}</div></div>`;
+}
 PAGES.phone = () => {
   const head = `<div class="page-h"><div><h4>Friends &amp; chat</h4><h1>Phone</h1></div>${G.online && G.online.code ? `<div class="row"><span class="small muted">Your friend code</span><span class="code">${esc(G.online.code)}</span><button class="btn sm" data-a="copyCode">Copy</button></div>` : ""}</div>`;
   if (!Online.available()) return head + `<div class="panel empty">The phone works on the website version of Touchline. It isn't available inside claude.ai.</div>`;
@@ -689,17 +752,19 @@ PAGES.phone = () => {
     const code = Online.open, p = Online.profiles[code] || { name: code }, msgs = Online.chats[Online.pair(code)] || [];
     Online.markRead(code);
     chat = `<div class="panel chat"><div class="panel-h"><div class="row"><button class="btn sm" data-a="phoneBack">‹ Back</button><b>${esc(p.name)}</b><span class="small muted">${esc(p.club || "")}</span></div><div class="row"><span class="small muted">Head to head: <b>${(() => { const r = Online.h2h(code); return `W${r.w} D${r.d} L${r.l}`; })()}</b></span><button class="btn sm pri" data-a="challenge" data-v="${esc(code)}">⚔️ Challenge to a friendly</button><button class="btn sm danger" data-a="phoneRemove" data-v="${esc(code)}">Remove</button></div></div>
-    <div class="chat-scroll" id="chatScroll">${msgs.length ? msgs.map((m) => `<div class="bub ${m.from === G.online.code ? "me" : ""}"><div>${esc(m.text)}</div><span>${new Date(m.at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span></div>`).join("") : `<div class="empty">No messages yet. Say hi!</div>`}</div>
+    <div class="chat-scroll" id="chatScroll">${msgs.length ? msgs.map((m) => `<div class="bub ${m.from === G.online.code ? "me" : ""}"><div>${esc(m.text)}</div>${chBubble(code, m)}<span>${new Date(m.at).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span></div>`).join("") : `<div class="empty">No messages yet. Say hi!</div>`}</div>
     <div class="row" style="margin-top:10px"><input type="text" id="chatInput" maxlength="500" placeholder="Message ${esc(p.name)}" style="flex:1;min-width:0" aria-label="Message"><button class="btn pri" data-a="phoneSend">Send</button></div>
-    <div class="row" style="margin-top:8px"><button class="btn sm" data-a="phoneQuick" data-v="result">Share my last result</button><button class="btn sm" data-a="phoneQuick" data-v="stats">Share my season</button><button class="btn sm" data-a="phoneQuick" data-v="banter">Send some banter</button></div></div>`;
+    <div class="row" style="margin-top:8px"><button class="btn sm" data-a="phoneQuick" data-v="result">Share my last result</button><button class="btn sm" data-a="phoneQuick" data-v="stats">Share my season</button><button class="btn sm" data-a="phoneQuick" data-v="banter">Send some banter</button></div>
+    <div class="row" style="margin-top:8px"><select id="chType" aria-label="Challenge" style="flex:1;min-width:0">${Object.entries(CHALLENGES).map(([k, c]) => `<option value="${k}">${esc(c.n)}${c.career ? " (players)" : ""}</option>`).join("")}</select><button class="btn sm pri" data-a="sendCh" data-v="${esc(code)}">🎯 Send challenge</button></div></div>`;
   } else {
     const lg = fr.map((c) => Online.profiles[c]).filter(Boolean).concat([Online.profileData()]).filter((x) => x.mode === "career").sort((a, b) => (b.ovr || 0) - (a.ovr || 0) || (b.goals || 0) - (a.goals || 0));
-    const league = lg.length > 1 ? `<div class="panel" style="margin-top:16px"><h3>Friends league</h3><div class="tw"><table class="t"><thead><tr><th>#</th><th>Player</th><th>Club</th><th class="r">Ovr</th><th class="r">Goals</th><th class="r">Caps</th><th class="r">Trophies</th></tr></thead><tbody>${lg.map((x, i) => `<tr class="${x.code === G.online.code ? "me" : ""}"><td>${i + 1}</td><td><b>${esc(x.name)}</b></td><td class="small">${esc(x.club)}</td><td class="r">${x.ovr || "–"}</td><td class="r">${x.goals || 0}</td><td class="r">${x.caps || 0}</td><td class="r">${x.trophies || 0}</td></tr>`).join("")}</tbody></table></div></div>` : "";
+    const league = lg.length > 1 ? `<div class="panel" style="margin-top:16px"><h3>Friends league</h3><div class="tw"><table class="t"><thead><tr><th>#</th><th>Player</th><th>Club</th><th class="r">Ovr</th><th class="r">Goals</th><th class="r">Caps</th><th class="r">Trophies</th><th class="r">🎯</th></tr></thead><tbody>${lg.map((x, i) => `<tr class="${x.code === G.online.code ? "me" : ""}"><td>${i + 1}</td><td><b>${esc(x.name)}</b></td><td class="small">${esc(x.club)}</td><td class="r">${x.ovr || "–"}</td><td class="r">${x.goals || 0}</td><td class="r">${x.caps || 0}</td><td class="r">${x.trophies || 0}</td><td class="r">${x.chWon || 0}</td></tr>`).join("")}</tbody></table></div></div>` : "";
     chat = `<div class="panel">${fr.length ? `<div class="stack" style="gap:8px">${fr.map(card).join("")}</div>` : `<div class="empty">No friends yet. Send your code <b>${esc(G.online.code)}</b> to a friend who plays Touchline, then add theirs on the right.</div>`}</div>${league}`;
   }
   return head + `<div class="grid g21"><div class="stack" style="gap:16px">${chat}</div><div class="stack" style="gap:16px">
   <div class="panel stack"><h3>Add a friend</h3><div class="row"><input type="text" id="friendCode" placeholder="e.g. SUNNY-1234" style="flex:1;min-width:0;text-transform:uppercase" aria-label="Friend code"><button class="btn pri" data-a="phoneAdd">Add</button></div>
   <p class="small muted" style="margin:0">Every save has its own friend code. Your friends see your player card update as your career goes on. Messages are stored online, so keep them friendly.</p></div>
+  ${challengesPanel()}
   ${Online.err ? `<div class="panel small">${esc(Online.err)}</div>` : ""}</div></div>`;
 };
 PAGES.saves = () => {
@@ -806,7 +871,16 @@ MODALS.season = (m) => {
   const rows = Object.keys(H.lg).map((id) => { const x = last(H.lg[id]); return x && x.s === prev ? `<tr><td>${esc(G.leagues[id].name)} <span class="muted small">${esc(G.leagues[id].country)}</span></td><td><b>${esc(x.n)}</b></td></tr>` : ""; }).join("");
   const cont = ["UCL", "UEL", "CAFCL", "CAFCC"].concat(TOURNEYS).map((k) => { const x = last(H.euro[k]); return x && x.s === prev ? `<tr><td>${esc(COMP_INFO[k].name)}</td><td><b>${esc(x.n)}</b></td></tr>` : ""; }).join("");
   const aw = last(H.awards);
-  return modalShell(`<div><h4>Season review</h4><h2>${prev}/${G.season % 100}</h2></div>`, `<div class="stack"><p style="margin:0;font-weight:600">${esc(m.summary || "")}</p>
+  const N = G.mode === "career" && G.career && G.career.night && G.career.night.s === prev ? G.career.night : null;
+  const tagN = (x) => (x ? `<span style="${x.me ? "color:var(--win);font-weight:700" : x.rv ? "color:var(--loss);font-weight:700" : ""}">${esc(x.n)}</span> <span class="small muted">${esc(x.c)}</span>` : "—");
+  const night = N ? `<div class="panel stack"><h3>🎤 Awards night</h3>
+    <p style="margin:0">${N.myBall ? `You finished <b>${ordinal(N.myBall)}</b> in the Golden Ball vote.` : "You didn't play enough to be ranked for the Golden Ball (15+ games)."}${N.rv ? ` Your rival ${esc(N.rv.n)} ${N.rvBall ? `finished ${ordinal(N.rvBall)}` : "wasn't ranked"}.` : ""}</p>
+    ${N.won.length ? `<div class="row" style="gap:6px">${N.won.map((w) => `<span class="chip gold">🏅 ${esc(w)}</span>`).join("")}</div>` : ""}
+    <div class="grid g2"><div><h4>Golden Ball top 10</h4><ol class="small" style="margin:4px 0 0;padding-left:20px">${N.ball.map((x) => `<li>${tagN(x)}</li>`).join("")}</ol></div>
+    <div class="stack" style="gap:6px"><div><h4>Golden Boot</h4><ol class="small" style="margin:4px 0 0;padding-left:20px">${N.boot.map((x) => `<li>${tagN(x)} · ${x.g}</li>`).join("")}</ol>${N.myBoot && N.myBoot > 5 ? `<div class="small muted">You: ${ordinal(N.myBoot)} with ${N.myG}.</div>` : ""}</div>
+    ${N.lg ? `<div class="small"><b>${esc(N.lg)}</b><br>Player of the Season: ${tagN(N.poty)}<br>Young Player: ${tagN(N.ypoty)}<br>Team of the Season: ${(N.tots || []).map(tagN).join(", ")}</div>` : ""}</div></div>
+    ${N.rv ? `<div class="small"><b>You vs ${esc(N.rv.n)}:</b> ${N.rv.mg} goals, ${N.rv.ma} assists, ${N.rv.mr} average against his ${N.rv.g}, ${N.rv.a}, ${N.rv.r}. ${N.rv.beat ? "You won the season." : "He won this round."}</div>` : ""}</div>` : "";
+  return modalShell(`<div><h4>Season review</h4><h2>${prev}/${G.season % 100}</h2></div>`, `<div class="stack"><p style="margin:0;font-weight:600">${esc(m.summary || "")}</p>${night}
   ${aw ? `<div class="kpis"><div class="kpi"><b style="font-size:1.1rem">${esc(aw.gb ? aw.gb.n : "—")}</b><span>Golden Ball</span></div><div class="kpi"><b style="font-size:1.1rem">${esc(aw.boot ? aw.boot.n + " (" + aw.boot.g + ")" : "—")}</b><span>Golden Boot</span></div><div class="kpi"><b style="font-size:1.1rem">${esc(aw.ys ? aw.ys.n : "—")}</b><span>Golden Boy</span></div></div>` : ""}
   <div class="grid g2"><div class="tw"><table class="t"><thead><tr><th>League</th><th>Champions</th></tr></thead><tbody>${rows}</tbody></table></div><div class="tw"><table class="t"><thead><tr><th>Competition</th><th>Winner</th></tr></thead><tbody>${cont}</tbody></table></div></div>
   <div class="row" style="justify-content:flex-end"><button class="btn pri" data-a="close">On to the new season</button></div></div>`, { wide: true });
@@ -824,7 +898,7 @@ MODALS.prematch = (m) => {
   const onBench = G.mode === "career" && lu.bench.includes(G.userPlayer);
   const opp = club(userSide ? f.h : f.a), olu = autoLineup(opp);
   const list = (c, l) => FORMATIONS[c.form].map((pos, i) => { const p = l.xi[i] != null ? pl(l.xi[i]) : null; return p ? `<div class="pcell small" style="padding:2px 0">${posTag(pos)}${faceHTML(p, 22)}<span class="nm">${esc(shortName(p))}</span><span class="muted">${p.o}</span></div>` : ""; }).join("");
-  return modalShell(`<div><h4>${esc(compName(f.c))} · ${esc(f.s || "")}</h4><h3>${esc(h.name)} v ${esc(a.name)}</h3></div>`, `<div class="stack">
+  return modalShell(`<div><h4>${esc(compName(f.c))} · ${esc(f.s || "")}</h4><h3>${esc(h.name)} v ${esc(a.name)}</h3></div>`, `<div class="stack">${(() => { const b = bigMatchInfo(f); return b ? `<div class="moment"><b>⚡ Big match: ${esc(b)}.</b> ${G.mode === "career" ? "Your decisions come in chains, and pressure matters: in form you thrive, out of form the nerves can get to you. Big moments here shape your reputation." : "The whole league is watching."}</div>` : ""; })()}
   <div class="nextmatch"><div class="tm">${crest(h, 64)}<span>${esc(h.name)}</span></div><div class="vs">v</div><div class="tm">${crest(a, 64)}<span>${esc(a.name)}</span></div></div>
   ${G.mode === "career" ? `<div class="panel" style="text-align:center;font-weight:600">${inXI ? "You're in the starting XI. Play the match to make the big decisions yourself." : onBench ? "You're on the bench today. If you come on, you'll get your chances to decide." : "You haven't made the squad today."}</div>` : ""}
   <div class="grid g2"><div class="panel"><h4>${esc(uc.name)} · ${esc(uc.form)}</h4>${list(uc, lu)}</div><div class="panel"><h4>${esc(opp.name)} · ${esc(opp.form)}</h4>${list(opp, olu)}</div></div>
@@ -924,7 +998,7 @@ function lvControls(L) {
     <label class="f">On<select id="lvIn" data-c="lvIn"><option value="">Choose substitute</option>${benchOpts}</select></label>
     <button class="btn" data-a="lvSub" ${side.subs >= side.maxSubs ? "disabled" : ""}>Make substitution</button></div>`;
 }
-const MOMENT_STAT = { pen: [1, "Finishing"], fk: [1, "Shooting"], oneone: [1, "Finishing"], edge: [1, "Shooting"], counter: [2, "Passing"], tackle: [4, "Defending"], header: [5, "Physical"], gkpen: [6, "Goalkeeping"], gk1v1: [6, "Goalkeeping"] };
+const MOMENT_STAT = { pen: [1, "Finishing"], fk: [1, "Shooting"], oneone: [1, "Finishing"], edge: [1, "Shooting"], counter: [2, "Passing"], tackle: [4, "Defending"], header: [5, "Physical"], gkpen: [6, "Goalkeeping"], gk1v1: [6, "Goalkeeping"], build: [3, "Dribbling"], defbuild: [4, "Defending"], gkbuild: [6, "Goalkeeping"] };
 function adBoard() {
   const extra = [];
   if (UI.live) { const h = club(UI.live.m.f.h); extra.push({ t: `WELCOME TO ${h.name.toUpperCase()}`, bg: h.c1, fg: lum(h.c1) > 0.6 ? "#111" : "#fff" }); }
@@ -968,8 +1042,13 @@ function lvMoment(L) {
   const m = L.m, mo = m.pending;
   if (mo) {
     const def = MOMENTS[mo.type], me = pl(mo.pid), st = MOMENT_STAT[mo.type];
+    const fm = me.form.length ? avg(me.form.slice(-4)) : 6.5;
+    const nerve = mo.press ? (fm >= 7 ? "You're in form, and the pressure is fuelling you." : fm < 6.4 ? "You're out of form, and the nerves are getting to you." : "The pressure is on.") : "";
+    const chips = `${m.big ? `<span class="chip gold">${esc(m.big)}</span>` : ""}${mo.late ? `<span class="chip">Late drama</span>` : ""}${mo.steps ? `<span class="chip">Step ${mo.step} of ${mo.steps}</span>` : ""}`;
     return `<div class="moment" role="group" aria-label="Your decision"><div class="row" style="justify-content:space-between"><b class="disp" style="font-size:1.3rem;text-transform:uppercase;letter-spacing:.04em">${mo.min}' · Your moment</b><span class="small">${esc(st[1])} ${Math.round(me.a[st[0]])}</span></div>
-    <p style="margin:6px 0 12px;font-size:1.05rem">${esc(def.q(mo))}</p><div class="row">${def.o.map(([v, l]) => `<button class="btn pri" data-a="lvChoice" data-v="${v}">${esc(l)}</button>`).join("")}</div></div>`;
+    ${chips ? `<div class="row" style="gap:6px;margin-top:6px">${chips}</div>` : ""}
+    ${mo.step === 2 && L.lastRes ? `<p class="small" style="margin:8px 0 0"><b>${esc(L.lastRes.txt)}</b></p>` : ""}
+    <p style="margin:6px 0 ${nerve ? 4 : 12}px;font-size:1.05rem">${esc(def.q(mo))}</p>${nerve ? `<p class="small muted" style="margin:0 0 12px">${esc(nerve)}</p>` : ""}<div class="row">${def.o.map(([v, l]) => `<button class="btn pri" data-a="lvChoice" data-v="${v}">${esc(l)}</button>`).join("")}</div></div>`;
   }
   if (L.lastRes) return `<div class="moment done ${L.lastRes.good ? "good" : "bad"}"><b>${L.lastRes.good ? "Good call." : "Didn't come off."}</b> ${esc(L.lastRes.txt)}</div>`;
   return "";
@@ -1091,6 +1170,8 @@ A.goPundit = () => { becomePundit(); render(); autosave(); };
 A.goManager = (el) => { openModal("confirm", { title: "Become a manager?", text: "Your save switches to manager mode at this club. Your playing record is kept.", yes: "Take the job", then: () => { switchToManager(+el.dataset.v, false, 0); UI.page = "home"; faceCache.clear(); render(); autosave(); } }); };
 A.buyClub = (el) => { const c = club(+el.dataset.v), price = clubPrice(c); openModal("confirm", { title: `Buy ${c.name}?`, text: `It costs ${money(price)}. You'll be the owner and the manager. Your save switches to manager mode.`, yes: "Buy the club", then: () => { switchToManager(c.id, true, price); UI.page = "home"; faceCache.clear(); render(); autosave(); } }); };
 A.ownerInvest = (el) => { toast(ownerInvest(+el.dataset.v)); render(); autosave(); };
+A.sendCh = async (el) => { const t = document.getElementById("chType"); el.disabled = true; try { toast(await Online.sendChallenge(el.dataset.v, t ? t.value : "")); } catch (e) { toast("The challenge didn't go through."); } el.disabled = false; };
+A.acceptCh = (el) => { const code = el.dataset.v, msg = (Online.chats[Online.pair(code)] || []).find((m) => m.ch && m.ch.id === el.dataset.id); if (!msg) return; toast(acceptChallenge(code, msg)); render(); };
 A.challenge = async (el) => { el.disabled = true; try { const r = await Online.challenge(el.dataset.v); toast(r); } catch (e) { toast("The challenge didn't go through."); } el.disabled = false; };
 A.trainInt = (el) => { toast(setIntensity(+el.dataset.v)); render(); autosave(); };
 A.trainSess = (el) => { toast(toggleSession(el.dataset.v)); render(); autosave(); };
@@ -1107,9 +1188,28 @@ A.lvPause = () => { const L = UI.live; L.paused = !L.paused; runTimer(); };
 A.lvResume = () => { resumeMatch(UI.live.m); UI.live.paused = false; runTimer(); };
 A.lvSpeed = (el) => { UI.live.speed = +el.dataset.v; runTimer(); };
 A.lvChoice = (el) => { const L = UI.live; if (!L || !L.m.pending) return; L.lastRes = resolveMoment(L.m, el.dataset.v); runTimer(); renderLive(true); };
-A.lvSkip = () => { const L = UI.live; clearInterval(L.timer); const m = L.m; if (m.pending) resolveMoment(m, pick(MOMENTS[m.pending.type].o)[0]); m.inter = null; m.sides.forEach((s) => (s.user = false)); m.live = false; let g = 0; while (!m.done && g++ < 400) { if (m.phase === "HT" || m.phase === "ETB") resumeMatch(m); stepMatch(m); } renderLive(); };
+A.lvSkip = () => { const L = UI.live; clearInterval(L.timer); const m = L.m; { let k = 0; while (m.pending && k++ < 5) resolveMoment(m, pick(MOMENTS[m.pending.type].o)[0]); } m.inter = null; m.sides.forEach((s) => (s.user = false)); m.live = false; let g = 0; while (!m.done && g++ < 400) { if (m.phase === "HT" || m.phase === "ETB") resumeMatch(m); stepMatch(m); } renderLive(); };
 A.lvFinish = () => { const m = UI.live.m; clearInterval(UI.live.timer); UI.live = null; UI.modal = null; renderModal(); afterUserMatch(finishMatch(m)); };
 A.continue = () => doContinue();
+A.ff = () => {
+  if (UI.busy || !G || (G.mode === "career" && G.career && G.career.retired && !G.career.pundit)) return;
+  if (G.sacked && G.mode === "manager") return doContinue();
+  const pend = G.inbox.find((x) => x.act && x.act.kind === "event" && !x.done);
+  if (pend) return doContinue();
+  const today = userFxOn(G.day);
+  if (today && !today.p && bigMatchInfo(today)) { openModal("prematch", { f: today.i }); return; }
+  UI.busy = true; busy(true, "Fast-forwarding to the next big moment…");
+  setTimeout(() => {
+    let r;
+    try { r = fastForward(); } catch (e) { console.error(e); UI.busy = false; busy(false); toast("Something went wrong while simulating."); render(); return; }
+    UI.busy = false; busy(false); UI.sel = null; render(); autosave();
+    if (r.n) toast(`Simulated ${r.n} match${r.n > 1 ? "es" : ""}: W${r.w} D${r.d} L${r.l}${r.ap ? `. You: ${r.g} goal${r.g === 1 ? "" : "s"}, ${r.a} assist${r.a === 1 ? "" : "s"}, average ${(r.rs / r.ap).toFixed(1)}` : ""}.`);
+    if (r.stop === "big") openModal("prematch", { f: r.f.i });
+    else if (r.stop === "season") openModal("season", { summary: G.inbox[0] ? G.inbox[0].b : "" });
+    else if (r.stop === "inbox") { const m = G.inbox.find((x) => x.act && !x.done); if (m) { m.read = true; openModal("msg", { id: m.id }); } }
+    else if (r.stop === "sacked") { const m = G.inbox.find((x) => x.act && x.act.kind === "jobs" && !x.done); if (m) openModal("msg", { id: m.id }); }
+  }, 30);
+};
 A.saveNow = async () => { await autosave(true); toast("Saved on this device."); };
 A.saveCloud = async () => { busy(true, "Saving to cloud…"); try { await Cloud.save(); toast("Saved to the cloud."); } catch (e) { toast(cloudErr(e)); } busy(false); };
 A.exportSave = async () => exportSave();
@@ -1119,6 +1219,7 @@ A.newSlot = async () => { G.id = "s" + Date.now().toString(36); G.name = G.name 
 A.startMgr = () => { UI.start = { step: "mgr" }; render(); };
 A.startCustom = () => { UI.start = { step: "custom" }; render(); };
 A.startCareer = () => { UI.start = { step: "career" }; render(); };
+A.startShort = () => { UI.start = { step: "career", short: true }; render(); };
 A.startBack = () => { UI.start = { step: "home" }; render(); };
 A.pickStartClub = (el) => { UI.start.club = el.dataset.k; render(); };
 A.beginMgr = () => {
@@ -1159,7 +1260,7 @@ A.beginCareer = () => {
   busy(true, "Signing your first contract…");
   setTimeout(() => {
     let cid = 0; for (const l of LEAGUE_DATA) { if (l.id === lid) { cid += +idx; break; } cid += l.clubs.trim().split("\n").length; }
-    newWorld({ mode: "career", real: st.real !== false, clubId: cid, saveName: st.saveName || `${cp.fn} ${cp.ln}`.trim(), player: { trait: cp.trait, fn: cp.fn.trim(), ln: cp.ln.trim(), nat: cp.nat, pos: cp.pos, foot: cp.foot, age: cp.age, ovr: START_OVR - (18 - cp.age), pot: START_POT, eq: true, face: cp.face.slice(), ph: cp.ph } });
+    newWorld({ mode: "career", real: st.real !== false, clubId: cid, saveName: st.saveName || `${cp.fn} ${cp.ln}`.trim(), player: { trait: cp.trait, fn: cp.fn.trim(), ln: cp.ln.trim(), nat: cp.nat, pos: cp.pos, foot: cp.foot, age: cp.age, ...(st.short ? { age: 28, ovr: SHORT_OVR, pot: SHORT_OVR + 2, short: true } : { ovr: START_OVR - (18 - cp.age), pot: START_POT }), eq: true, face: cp.face.slice(), ph: cp.ph } });
     afterNewGame();
   }, 30);
 };
@@ -1392,7 +1493,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610150010";
+const BUILD = "202610150230";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;

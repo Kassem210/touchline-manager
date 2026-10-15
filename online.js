@@ -64,6 +64,7 @@ const Online = {
       if (p) Object.assign(base, { pos: p.pos, ovr: p.o, age: age(p), nat: p.nat, face: p.face, apps: p.st.ap + p.hist.reduce((s, h) => s + h.ap, 0), goals: p.st.g + p.hist.reduce((s, h) => s + h.g, 0), caps: p.caps || 0, trophies: G.career.trophies.length, retired: !!G.career.retired });
     } else Object.assign(base, { trophies: G.mgr.trophies.length, conf: Math.round(G.mgr.conf) });
     try { base.team = teamSnapshot(); } catch (e) { /* ignore */ }
+    base.chWon = (G.online && G.online.chWon) || 0;
     if (G.mode === "career" && G.career) base.rep = Math.round(G.career.rep == null ? 50 : G.career.rep);
     return base;
   },
@@ -105,7 +106,7 @@ const Online = {
       const pr = this.pair(code);
       const q = query(collection(this.db, "chats", pr, "msgs"), orderBy("at"), limitToLast(60));
       this.unsub.push(onSnapshot(q, (s) => {
-        this.chats[pr] = s.docs.map((d) => { const x = d.data({ serverTimestamps: "estimate" }); return { id: d.id, from: x.from, text: x.text, h2h: x.h2h || null, at: x.at && x.at.toMillis ? x.at.toMillis() : Date.now() }; });
+        this.chats[pr] = s.docs.map((d) => { const x = d.data({ serverTimestamps: "estimate" }); return { id: d.id, from: x.from, text: x.text, h2h: x.h2h || null, ch: x.ch || null, at: x.at && x.at.toMillis ? x.at.toMillis() : Date.now() }; });
         if (this.open === code) this.markRead(code);
         refreshOnlineUI();
       }, (e) => { this.err = "Messages couldn't load. Check that the Firestore security rules were published."; refreshOnlineUI(); }));
@@ -128,6 +129,14 @@ const Online = {
     if (!text) return;
     const { collection, addDoc, serverTimestamp } = this.fs;
     await addDoc(collection(this.db, "chats", this.pair(code), "msgs"), { from: G.online.code, text, at: serverTimestamp() });
+  },
+  async sendChallenge(code, type) {
+    const c = CHALLENGES[type]; if (!c) return "Pick a challenge.";
+    const fp = this.profiles[code];
+    if (c.career && fp && fp.mode !== "career") return "Your friend is a manager, so pick a team challenge.";
+    const { collection, addDoc, serverTimestamp } = this.fs;
+    await addDoc(collection(this.db, "chats", this.pair(code), "msgs"), { from: G.online.code, text: `🎯 Challenge: ${c.n}`, at: serverTimestamp(), ch: { id: `${G.online.code}-${Date.now()}`, type } });
+    return "Challenge sent.";
   },
   async challenge(code) {
     const fp = this.profiles[code];
