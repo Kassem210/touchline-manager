@@ -272,7 +272,7 @@ function postTransfer(t) {
   const to = club(t.to), from = t.from != null ? club(t.from) : null;
   const likes = Math.round(30000 + (t.fee / 1e6) * 9000 + Math.pow(Math.max(0, t.o - 55), 2) * 120) * (t.mine ? 2 : 1);
   const cap = `HERE WE GO! ${t.n} to ${to.name}, deal done${t.fee ? ` for ${money(t.fee)}` : " on a free"}${from ? ` from ${from.name}` : ""}. Contract until ${(t.ce || G.season + 3) + 1}. ✅🔴 #herewego`;
-  const post = accPost("jour", "transfer", cap, { likes, ncm: Math.round(likes * 0.02), from: t.from, to: t.to, pn: t.ln, v: rnd() * 3 | 0 });
+  const post = accPost("jour", "transfer", cap, { likes, ncm: Math.round(likes * 0.02), from: t.from, to: t.to, pn: t.ln, pid: t.p, v: rnd() * 3 | 0 });
   post.cm = genComments("transfer", 0.4, 4, { ln: t.ln });
   return post;
 }
@@ -281,7 +281,7 @@ function postRumour() {
   const offer = G.inbox.find((m) => m.act && m.act.kind === "coffer" && !m.done && !m.rumoured);
   if (offer && me) {
     offer.rumoured = true; const c = club(offer.act.cid);
-    const post = accPost("jour", "transfer", `EXCLUSIVE: ${c.name} have made an official approach for ${fullName(me)}. Talks with his camp ongoing. 🔴⏳ #exclusive`, { likes: Math.round(soc().followers * 0.5 + 20000), from: me.club >= 0 ? me.club : null, to: c.id, rumour: true, pn: me.ln });
+    const post = accPost("jour", "transfer", `EXCLUSIVE: ${c.name} have made an official approach for ${fullName(me)}. Talks with his camp ongoing. 🔴⏳ #exclusive`, { likes: Math.round(soc().followers * 0.5 + 20000), from: me.club >= 0 ? me.club : null, to: c.id, rumour: true, pn: me.ln, pid: me.id });
     post.cm = genComments("transfer", 0.3, 4, me); return;
   }
   if (rnd() > 0.35) return;
@@ -290,7 +290,7 @@ function postRumour() {
   const q = pick(stars), buyers = G.clubs.filter((c) => c.id !== q.club && c.rep >= club(q.club).rep - 2 && c.rep >= 78);
   if (!buyers.length) return;
   const c = pick(buyers);
-  const post = accPost("jour", "transfer", `${c.name} are exploring a move for ${fullName(q)}. Initial talks with ${club(q.club).name}, nothing agreed yet. 🔴 #exclusive`, { likes: Math.round(20000 + q.o * 400), from: q.club, to: c.id, rumour: true, pn: q.ln });
+  const post = accPost("jour", "transfer", `${c.name} are exploring a move for ${fullName(q)}. Initial talks with ${club(q.club).name}, nothing agreed yet. 🔴 #exclusive`, { likes: Math.round(20000 + q.o * 400), from: q.club, to: c.id, rumour: true, pn: q.ln, pid: q.id });
   post.cm = genComments("transfer", 0.2, 3, q);
 }
 function mediaWeekly() {

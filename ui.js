@@ -615,13 +615,22 @@ function sceneSVG(x, w) {
     case "rival": { const rv = typeof rivalOf === "function" ? rivalOf() : null; const rc = rv && rv.club >= 0 ? club(rv.club) : { c1: "#7a1f1f", c2: "#fff" };
       b = `<polygon points="0,0 60,0 40,100 0,100" fill="${c1}"/><polygon points="60,0 100,0 100,100 40,100" fill="${rc.c1}"/>` + face(4, 30, 36) + (rv ? `<circle cx="78" cy="48" r="18" fill="#ffffff33"/>${svgAt(faceSVG(rv.face, rc.c1, rc.c2), 60, 30, 36)}` : "") + `<circle cx="50" cy="50" r="10" fill="#000"/>${T_("VS", 50, 54.5, 11, "#ffd60a")}`; break; }
     case "transfer": {
-      const fr = x.from != null ? club(x.from) : null, to = x.to != null ? club(x.to) : null;
-      b = grad("#0b132b", "#1c2541") + (fr ? svgAt(crest(fr, 30), 8, 30, 28, 31) : E("🆓", 22, 46, 18)) + (to ? svgAt(crest(to, 30), 64, 30, 28, 31) : "") + `<path d="M40 46 H58 M52 40 L58 46 L52 52" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>` + E("🚨", 12, 12, 10) + E("🚨", 88, 12, 10);
+      const fr = x.from != null ? club(x.from) : null, to = x.to != null ? club(x.to) : null, tp = x.pid != null ? pl(x.pid) : null;
+      const kit = to || { c1: "#136f43", c2: "#fff" };
+      b = grad("#0b132b", "#1c2541") + E("🚨", 10, 10, 9) + E("🚨", 90, 10, 9);
+      if (tp) {
+        b += `<defs><clipPath id="tp${x.id}"><circle cx="50" cy="23" r="17"/></clipPath></defs><circle cx="50" cy="23" r="18.5" fill="${kit.c1}" stroke="#fff" stroke-width="1.2"/>`;
+        b += `<g clip-path="url(#tp${x.id})">${tp.ph ? `<image href="${esc(tp.ph)}" x="33" y="8" width="34" height="34" preserveAspectRatio="xMidYMid slice"/>` : svgAt(faceSVG(tp.face, kit.c1, kit.c2), 34, 8.5, 32)}</g>`;
+      }
+      if (x.pn) b += T_(String(x.pn).toUpperCase(), 50, tp ? 49 : 24, 8, "#fff");
+      const cy = tp ? 52 : 32, cs = tp ? 22 : 28;
+      b += (fr ? svgAt(crest(fr, 30), 10, cy, cs, Math.round(cs * 1.1)) : E("🆓", 21, cy + cs / 2, 14)) + (to ? svgAt(crest(to, 30), 90 - cs, cy, cs, Math.round(cs * 1.1)) : "");
+      const ay = cy + cs * 0.55;
+      b += `<path d="M38 ${ay} H60 M54 ${ay - 5} L60 ${ay} L54 ${ay + 5}" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
       const an = x.d != null && absDay() - x.d <= 1 ? " anim" : "";
-      b += x.rumour ? `<g class="hwg-stamp${an}"><rect x="22" y="70" width="56" height="14" rx="2" fill="none" stroke="#ffd60a" stroke-width="1.6" transform="rotate(-4 50 77)"/>${T_("EXCLUSIVE", 50, 81, 10, "#ffd60a", 'transform="rotate(-4 50 77)"')}</g>`
-        : `<g class="hwg-stamp${an}"><rect x="16" y="68" width="68" height="18" rx="2" fill="none" stroke="#ff2d2d" stroke-width="2" transform="rotate(-6 50 77)"/>${T_("HERE WE GO!", 50, 82, 13, "#ff2d2d", 'transform="rotate(-6 50 77)"')}</g>`;
-      if (x.pn) b += T_(String(x.pn).toUpperCase(), 50, 22, 8, "#fff");
-      if (x.by === "acc:jour") b += `<defs><clipPath id="jc${x.id}"><circle cx="88" cy="88" r="9"/></clipPath></defs><circle cx="88" cy="88" r="10" fill="#fff"/><g clip-path="url(#jc${x.id})">${svgAt(JOURNALIST_SVG, 79, 79, 18)}</g>`;
+      b += x.rumour ? `<g class="hwg-stamp${an}"><rect x="24" y="78" width="52" height="13" rx="2" fill="none" stroke="#ffd60a" stroke-width="1.6" transform="rotate(-4 50 84)"/>${T_("EXCLUSIVE", 50, 88, 9.5, "#ffd60a", 'transform="rotate(-4 50 84)"')}</g>`
+        : `<g class="hwg-stamp${an}"><rect x="18" y="77" width="64" height="16" rx="2" fill="none" stroke="#ff2d2d" stroke-width="2" transform="rotate(-6 50 85)"/>${T_("HERE WE GO!", 50, 89.5, 12, "#ff2d2d", 'transform="rotate(-6 50 85)"')}</g>`;
+      if (x.by === "acc:jour") b += `<defs><clipPath id="jc${x.id}"><circle cx="90" cy="90" r="8"/></clipPath></defs><circle cx="90" cy="90" r="9" fill="#fff"/><g clip-path="url(#jc${x.id})">${svgAt(JOURNALIST_SVG, 82, 82, 16)}</g>`;
       break;
     }
     case "news": { const lines = wrapText(x.head || x.cap, 22, 4); b = `<rect width="100" height="100" fill="#f4f1ea"/><rect width="100" height="16" fill="#c1121f"/>${T_("BREAKING", 50, 11.5, 9, "#fff")}${lines.map((l, i) => `<text x="8" y="${32 + i * 13}" font-size="9.5" font-family="Georgia, serif" font-weight="700" fill="#111">${esc(l)}</text>`).join("")}<rect x="8" y="88" width="40" height="2" fill="#999"/><rect x="8" y="92" width="60" height="2" fill="#bbb"/>`; break; }
@@ -1053,6 +1062,7 @@ MODALS.hwg = (t) => {
   return `<div class="scrim hwg" data-a="close"><div class="hwg-card" role="dialog" aria-modal="true" aria-label="Here we go">
     <div class="hwg-head"><span class="hwg-siren">🚨</span><span class="hwg-jour">${JOURNALIST_SVG}</span><span class="hwg-siren">🚨</span></div>
     <div class="hwg-clubs"><span class="hwg-from">${from ? crest(from, 84) : "🆓"}</span><span class="hwg-arrow">➜</span><span class="hwg-to">${crest(to, 84)}</span></div>
+    ${pl(t.p) ? `<div class="hwg-player">${faceHTML(pl(t.p), 110)}</div>` : ""}
     <div class="hwg-name">${esc(t.n)}</div>
     <div class="hwg-text">HERE WE GO!</div>
     <div class="hwg-sub">${esc(to.name)}${t.fee ? ` · ${money(t.fee)}` : " · free transfer"} · until ${(t.ce || G.season + 3) + 1} ✅</div>
@@ -1715,7 +1725,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610151830";
+const BUILD = "202610151850";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;
