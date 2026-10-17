@@ -1,13 +1,25 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Replace DEV_PASSWORD (both places) with your developer password when you paste
+    // these rules into the Firebase console. Never commit the real password here.
     function signedIn() { return request.auth != null; }
     function owns(code) {
       return exists(/databases/$(database)/documents/profiles/$(code))
         && get(/databases/$(database)/documents/profiles/$(code)).data.uid == request.auth.uid;
     }
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.key == 'DEV_PASSWORD';
+    }
+    match /admins/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid && request.resource.data.key == 'DEV_PASSWORD';
+    }
     match /profiles/{code} {
-      allow read: if signedIn();
+      allow get: if signedIn();
+      allow list: if isAdmin();
       allow create: if signedIn() && request.resource.data.uid == request.auth.uid
         && code.matches('^[A-Z0-9]{1,12}-[0-9]{4}$');
       allow update, delete: if signedIn() && resource.data.uid == request.auth.uid
@@ -19,6 +31,11 @@ service cloud.firestore {
         && request.resource.data.from in pair.split('__')
         && request.resource.data.text is string
         && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 500;
+    }
+    // commands from the developer page: only admins write them; the player's own game reads and clears them
+    match /cmds/{code}/q/{id} {
+      allow create: if isAdmin();
+      allow read, delete: if isAdmin() || owns(code);
     }
   }
 }

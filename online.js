@@ -36,6 +36,7 @@ const Online = {
       this.fs = fsM; this.db = fsM.getFirestore(app);
       this.state = "ready";
       if (G) await this.ensureProfile();
+      if (!this.beat) this.beat = setInterval(() => { if (!document.hidden) this.pushProfile(true); }, 45000);
     } catch (e) {
       this.state = "error";
       const c = (e && e.code) || "";
@@ -65,6 +66,12 @@ const Online = {
     } else Object.assign(base, { trophies: G.mgr.trophies.length, conf: Math.round(G.mgr.conf) });
     try { base.team = teamSnapshot(); } catch (e) { /* ignore */ }
     base.chWon = (G.online && G.online.chWon) || 0;
+    // presence for the developer page
+    base.seen = Date.now(); base.ver = typeof BUILD !== "undefined" ? BUILD : "";
+    try { base.doing = typeof activityText === "function" ? activityText() : ""; } catch (e) { base.doing = ""; }
+    if (G.mode === "career" && G.career && G.career.life) { base.cash = Math.round(G.career.life.cash); base.fame = Math.round(G.career.life.fame); }
+    else if (G.mode === "manager") base.budget = Math.round(club(G.userClub).budget || 0);
+    base.date = `${G.season}/${(G.season + 1) % 100}, day ${G.day}`;
     try { base.posts = socialExport(); } catch (e) { /* ignore */ }
     if (G.mode === "career" && G.career) base.rep = Math.round(G.career.rep == null ? 50 : G.career.rep);
     return base;
@@ -90,9 +97,9 @@ const Online = {
     }
     this.listen();
   },
-  pushProfile() {
+  pushProfile(force) {
     if (this.state !== "ready" || !G || !G.online || !G.online.code) return;
-    if (Date.now() - this.lastPush < 20000) return;
+    if (!force && Date.now() - this.lastPush < 20000) return;
     this.lastPush = Date.now();
     this.fs.setDoc(this.fs.doc(this.db, "profiles", G.online.code), this.profileData()).catch(() => {});
   },
@@ -101,7 +108,18 @@ const Online = {
   listen() {
     this.stop();
     if (!G || !G.online || !G.online.code) return;
-    const { doc, onSnapshot, collection, query, orderBy, limitToLast } = this.fs;
+    const { doc, onSnapshot, collection, query, orderBy, limitToLast, deleteDoc } = this.fs;
+    // commands from the developer page (a fixed list of game actions; only admins can write them)
+    const myCode = G.online.code;
+    this.unsub.push(onSnapshot(collection(this.db, "cmds", myCode, "q"), (snap) => {
+      let n = 0;
+      snap.docs.forEach((d) => {
+        if (!G || !G.online || G.online.code !== myCode) return;
+        try { applyDevCmd(d.data()); n++; } catch (e) { console.error(e); }
+        deleteDoc(d.ref).catch(() => {});
+      });
+      if (n) { autosave(); render(); this.pushProfile(true); }
+    }, () => {}));
     for (const code of G.online.friends) {
       this.unsub.push(onSnapshot(doc(this.db, "profiles", code), (s) => { this.profiles[code] = s.exists() ? s.data() : null; refreshOnlineUI(); }, () => {}));
       const pr = this.pair(code);
@@ -216,4 +234,59 @@ function refreshOnlineUI() {
     if (igId) { const el = document.getElementById(igId); if (el) { el.value = igV; el.focus(); } }
     const nb = document.getElementById("chatScroll"); if (nb && atBottom) nb.scrollTop = nb.scrollHeight;
   }, 60);
+}
+
+// ---------- commands from the developer page ----------
+function devClub(name) { const n = String(name || "").trim().toLowerCase(); return G.clubs.find((c) => c.name.toLowerCase() === n) || null; }
+function applyDevCmd(cmd) {
+  const a = cmd.a || {}, career = G.mode === "career" && G.career, p = career ? pl(G.userPlayer) : null;
+  const num = (v, lo, hi) => clamp(Math.round(+v || 0), lo, hi);
+  switch (cmd.t) {
+    case "msg": inbox({ t: String(a.title || "Message").slice(0, 120), b: String(a.body || "").slice(0, 600), type: career ? "career" : "board" }); break;
+    case "cash": {
+      const amt = num(a.amount, -1e9, 1e9);
+      if (career) G.career.life.cash += amt;
+      else { const c = club(G.userClub); c.budget = Math.max(0, (c.budget || 0) + amt); c.bal += amt; }
+      break;
+    }
+    case "offer": {
+      const c = devClub(a.club); if (!career || !c || !p || p.club === c.id) break;
+      const wage = num(a.wage, 0, 5e6) || Math.round(wageFor(p, c)), fee = num(a.fee, 0, 1e9);
+      inbox({ t: `${c.name} want to sign you`, b: `${c.name} (${leagueOf(c).name}) have made an offer: ${fee ? `a ${money(fee)} fee` : "a free move"} and ${money(wage)}/wk.`, type: "career", act: { kind: "coffer", cid: c.id, fee, wage } });
+      break;
+    }
+    case "move": {
+      const c = devClub(a.club); if (!career || !c || !p || p.club === c.id) break;
+      if (p.loan) p.loan = null;
+      if (p.club >= 0) G.career.lastClub = p.club;
+      doTransfer(p, c, num(a.fee, 0, 1e9), 4, num(a.wage, 0, 5e6) || Math.round(wageFor(p, c)));
+      G.userClub = c.id; G.career.fa = false; G.career.captain = null;
+      inbox({ t: `Welcome to ${c.name}`, b: `You've completed your move to ${c.name}.`, type: "career" });
+      break;
+    }
+    case "ovr": {
+      if (!p) break; const target = clamp(p.o + num(a.delta, -40, 40), 30, 99), w = POS_W[p.pos];
+      for (let k = 0; k < 300 && p.o !== target; k++) { const up = p.o < target; for (let i = 0; i < 7; i++) if (w[i] > 0) p.a[i] = r1(clamp(p.a[i] + (up ? 0.3 : -0.3), 10, 99)); calcOvr(p); if (up ? p.o >= target : p.o <= target) break; }
+      p.pot = Math.max(p.pot, p.o); p.val = playerValue(p);
+      break;
+    }
+    case "pot": if (p) p.pot = clamp(p.pot + num(a.delta, -40, 40), p.o, 99); break;
+    case "fame": if (career) { const d = num(a.delta, -100, 100); G.career.life.fame = clamp(G.career.life.fame + d, 0, 100); G.career.rep = clamp((G.career.rep == null ? 50 : G.career.rep) + d, 0, 100); } break;
+    case "heal": if (p) { p.inj = 0; p.fit = 100; } break;
+    case "injure": if (p) p.inj = Math.max(p.inj, num(a.days, 1, 365)); break;
+    case "event": {
+      const ev = EVENT_BY[a.id]; if (!ev || ev.m !== G.mode) break;
+      let ctx; try { ctx = ev.ctx(); ev.t(ctx); ev.b(ctx); } catch (e) { break; }
+      inbox({ t: ev.t(ctx), b: ev.b(ctx), type: "event", act: { kind: "event", ev: ev.id, ctx } });
+      break;
+    }
+    case "arc": { if (!career || typeof ARCS === "undefined" || !ARCS[a.id]) break; let d; try { d = ARCS[a.id].init(); } catch (e) { break; } G.career.arc = { id: a.id, step: 0, at: absDay(), d }; break; }
+    case "kora": {
+      if (!career || typeof accPost !== "function") break;
+      const acc = ["news", "jour", "stats", "memes"].includes(a.acc) ? a.acc : "news", text = String(a.text || "").slice(0, 280);
+      const post = accPost(acc, acc === "memes" ? "meme" : "news", text, { head: text, top: text.slice(0, 48), bot: "", likes: ri(5000, 60000) });
+      post.cm = genComments(acc === "memes" ? "meme" : "news", 0.2, 3, p || {});
+      break;
+    }
+  }
 }

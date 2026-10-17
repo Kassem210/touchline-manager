@@ -1328,7 +1328,7 @@ function renderLive(full) {
 
 // ---------- actions ----------
 const A = {};
-A.nav = (el) => { UI.page = el.dataset.p; UI.sel = null; UI.talkRes = null; render(); window.scrollTo(0, 0); };
+A.nav = (el) => { setTimeout(() => Online.pushProfile(), 50); UI.page = el.dataset.p; UI.sel = null; UI.talkRes = null; render(); window.scrollTo(0, 0); };
 A.close = () => closeModal();
 A.scrim = (el, ev) => { if (ev.target === el && UI.modal && UI.modal.kind !== "live" && UI.modal.kind !== "prematch") closeModal(); };
 A.sort = (el) => { const key = el.dataset.key, k = el.dataset.k; const s = UI.sort[key]; UI.sort[key] = s && s.k === k ? { k, d: -s.d } : { k, d: ["name", "pos", "club"].includes(k) ? 1 : -1 }; refresh(); };
@@ -1428,7 +1428,7 @@ A.retireAsk = () => openModal("confirm", { title: "Retire from football?", text:
 A.pmTactics = () => { closeModal(); UI.page = "tactics"; render(); };
 A.quickSim = (el) => { closeModal(); afterUserMatch(playFixture(G.fx[+el.dataset.id])); };
 A.playLive = (el) => { const fi = +el.dataset.id; if (G.mode === "career" && G.career && !(G.career.noWalk && !bigMatchInfo(G.fx[fi]))) openModal("walkout", { f: fi }); else startLive(fi); };
-A.walkOut = (el) => { startLive(+el.dataset.id); };
+A.walkOut = (el) => { startLive(+el.dataset.id); setTimeout(() => Online.pushProfile(true), 50); };
 
 A.setNum = () => { const i = document.getElementById("shirtNum"), n = Math.round(+(i && i.value)); if (!(n >= 1 && n <= 99)) { toast("Pick a number from 1 to 99."); return; } const p = pl(G.userPlayer); G.career.nums = G.career.nums || {}; G.career.nums[p.club] = n; toast(`You'll wear number ${n}.`); render(); autosave(); };
 A.lvMent = (el) => { const L = UI.live, s = L.m.sides.find((x) => x.user); s.ment = +el.dataset.v; club(s.cid).ment = s.ment; calcStrength(L.m); renderLive(true); };
@@ -1546,6 +1546,18 @@ A.delCloudAsk = (el) => openModal("confirm", { title: "Delete this cloud save?",
 A.refreshCloud = async () => { await refreshCloud(); render(); };
 
 function refresh() { if (UI.modal && UI.modal.kind === "club") renderModal(); else render(); }
+// what the player is doing right now, shown on the developer page
+const PAGE_DOING = { home: "On the home screen", inbox: "Reading the inbox", career: "Checking their career", cabinet: "Looking at the trophy cabinet", kora: "Scrolling Kora", life: "Managing their life", squad: "Looking at the squad", tactics: "Setting tactics", fixtures: "Checking fixtures", comps: "Checking competitions", world: "Browsing players", transfers: "On the transfer market", club: "Managing the club", phone: "Texting friends", saves: "In the save menu" };
+function activityText() {
+  if (!G) return "On the start screen";
+  const k = UI.modal && UI.modal.kind;
+  if (k === "live" && UI.live) { const m = UI.live.m; return `Playing live: ${club(m.f.h).short} ${m.g[0]}–${m.g[1]} ${club(m.f.a).short} (${m.min}')`; }
+  if (k === "walkout") return "Walking out of the tunnel";
+  if (k === "prematch") return "Getting ready for a match";
+  if (k === "season") return "Watching the season review";
+  if (k === "igNew") return "Writing a Kora post";
+  return PAGE_DOING[UI.page] || "Playing";
+}
 function afterNewGame() { UI.page = "home"; UI.start = { step: "home" }; busy(false); render(); autosave(true); onlineGameLoaded(); }
 function onlineGameLoaded() { if (!Online.available()) return; Online.stop(); if (Online.state === "ready") Online.ensureProfile().catch(() => {}); else Online.connect(); }
 
@@ -1771,7 +1783,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610171200";
+const BUILD = "202610171400";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;

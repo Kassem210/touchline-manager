@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Touchline Developer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;800&family=Figtree:wght@400;600;700&display=swap">
+<style>
+:root { --bg: #0d1310; --panel: #141c18; --panel2: #1a241f; --ink: #e5ebe7; --muted: #92a098; --line: #263129; --accent: #3dbb7a; --warn: #e2a13a; --loss: #ec6a5f; --gold: #e3b62e; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 Figtree, system-ui, sans-serif; }
+h1, h2, h3 { font-family: "Saira Condensed", sans-serif; margin: 0; letter-spacing: .02em; }
+.wrap { max-width: 1200px; margin: 0 auto; padding: 16px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.muted { color: var(--muted); } .small { font-size: .85rem; }
+input, select, textarea, button { font: inherit; color: inherit; }
+input, select, textarea { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0; }
+button { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-weight: 700; }
+button.pri { background: var(--accent); border-color: var(--accent); color: #062014; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.login { max-width: 360px; margin: 14vh auto 0; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 14px 0; }
+.kpi b { display: block; font-family: "Saira Condensed", sans-serif; font-size: 2rem; }
+.grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+.list { display: flex; flex-direction: column; gap: 8px; }
+.pcard { display: flex; gap: 10px; align-items: center; text-align: left; width: 100%; padding: 10px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); }
+.pcard.on { border-color: var(--accent); }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: #555; }
+.dot.live { background: var(--accent); box-shadow: 0 0 10px var(--accent); } .dot.recent { background: var(--warn); }
+.crest { width: 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font: 800 .7rem "Saira Condensed", sans-serif; flex: none; border: 2px solid #0004; }
+.grow { flex: 1; min-width: 0; } .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--line); font-size: .75rem; font-weight: 700; }
+.act { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.act h3 { font-size: 1.05rem; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: .9rem; }
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--accent); color: #062014; font-weight: 700; padding: 10px 16px; border-radius: 10px; }
+.toast.err { background: var(--loss); color: #fff; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="login" class="login panel">
+  <h1>Touchline developer</h1>
+  <p class="muted small" style="margin:0">Enter the developer password.</p>
+  <input type="password" id="pw" inputmode="numeric" autocomplete="current-password" aria-label="Password">
+  <button class="pri" id="unlock">Unlock</button>
+  <div id="lerr" class="small" style="color:var(--loss)"></div>
+</div>
+
+<div id="app" class="wrap hidden">
+  <div class="row" style="justify-content:space-between"><h1>Touchline · Developer</h1><span class="small muted" id="updated"></span></div>
+  <div class="kpis">
+    <div class="panel kpi"><b id="kOnline">0</b><span class="muted small">Online now</span></div>
+    <div class="panel kpi"><b id="kMatch">0</b><span class="muted small">Playing a match</span></div>
+    <div class="panel kpi"><b id="kToday">0</b><span class="muted small">Active in 24 hours</span></div>
+    <div class="panel kpi"><b id="kAll">0</b><span class="muted small">Saves online in total</span></div>
+  </div>
+  <div class="grid">
+    <div class="panel">
+      <div class="row" style="margin-bottom:10px"><input id="q" placeholder="Search name, code or club" style="flex:1"><select id="filter"><option value="online">Online now</option><option value="day">Last 24 hours</option><option value="all">Everyone</option></select></div>
+      <div class="list" id="list"></div>
+    </div>
+    <div class="panel" id="detail"><p class="muted" style="margin:0">Pick a player to see their details and change their world.</p></div>
+  </div>
+</div>
+
+<datalist id="clubs"></datalist>
+<script src="data.js"></script>
+<script>
+const FIREBASE_CONFIG = { apiKey: "AIzaSyDOBu-zI_2Qgu_-6flX8wgPQCei-JfUle8", authDomain: "touchline-1adc4.firebaseapp.com", projectId: "touchline-1adc4", storageBucket: "touchline-1adc4.firebasestorage.app", messagingSenderId: "582615663644", appId: "1:582615663644:web:ac0431097dd9f2cc928bd9" };
+const FB = "https://www.gstatic.com/firebasejs/10.12.2";
+const EVENT_IDS = { career: ["gift", "party", "press", "loan", "hospital", "abuse", "mentor", "ad", "knock", "fight", "holiday", "kidtraining", "report", "invest", "president", "cover", "fanphoto", "fixer", "supplement", "extrasession", "legend", "diet", "documentary", "sickfan", "oldclub", "parents", "oldposts", "secret", "rival", "language", "gaming", "speeding", "captainband", "kidsfootball", "charitymatch", "partnercareer", "rivalTaunt"], manager: ["payrise", "mpress", "nightclub", "tickets", "naming", "youngster", "clash", "starleave", "tour", "wonderkid", "mole", "target", "derby"] };
+const ARC_IDS = { scout: "A big club is watching", feud: "Dressing-room feud", boss: "Manager on the brink", rumour: "Tabloid storm", fan: "A promise to a young fan" };
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const money = (v) => (Math.abs(v) >= 1e6 ? `€${(v / 1e6).toFixed(1)}M` : Math.abs(v) >= 1e3 ? `€${Math.round(v / 1e3)}K` : `€${Math.round(v)}`);
+const ago = (t) => { if (!t) return "never"; const s = (Date.now() - t) / 1000; return s < 60 ? "just now" : s < 3600 ? `${Math.round(s / 60)} min ago` : s < 86400 ? `${Math.round(s / 3600)} h ago` : `${Math.round(s / 86400)} days ago`; };
+const lum = (h) => { const n = parseInt(String(h || "#777").slice(1), 16); return ((n >> 16) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114) / 255; };
+let fs, db, profiles = {}, sel = null;
+const $ = (id) => document.getElementById(id);
+function toast(t, err) { const d = document.createElement("div"); d.className = "toast" + (err ? " err" : ""); d.textContent = t; document.body.appendChild(d); setTimeout(() => d.remove(), 2600); }
+
+// club names for the transfer boxes
+document.getElementById("clubs").innerHTML = LEAGUE_DATA.flatMap((l) => l.clubs.trim().split("\n").map((r) => r.split("|")[0].trim())).sort().map((n) => `<option value="${esc(n)}">`).join("");
+
+async function unlock() {
+  const pw = $("pw").value.trim(); if (!pw) return;
+  $("unlock").disabled = true; $("lerr").textContent = "";
+  try {
+    const [appM, authM, fsM] = await Promise.all([import(`${FB}/firebase-app.js`), import(`${FB}/firebase-auth.js`), import(`${FB}/firebase-firestore.js`)]);
+    const app = appM.initializeApp(FIREBASE_CONFIG, "dev");
+    const auth = authM.getAuth(app); const cred = await authM.signInAnonymously(auth);
+    fs = fsM; db = fsM.getFirestore(app);
+    // Firebase's security rules check the password; a wrong one is refused.
+    await fs.setDoc(fs.doc(db, "admins", cred.user.uid), { key: pw, at: fs.serverTimestamp() });
+    $("pw").value = "";
+    $("login").classList.add("hidden"); $("app").classList.remove("hidden");
+    fs.onSnapshot(fs.collection(db, "profiles"), (snap) => { profiles = {}; snap.docs.forEach((d) => (profiles[d.id] = d.data())); renderList(); if (sel) renderDetail(); $("updated").textContent = `Live · updated ${new Date().toLocaleTimeString()}`; },
+      (e) => toast(`Couldn't load players: ${e.code || e.message}`, true));
+    setInterval(renderList, 20000);
+  } catch (e) {
+    const c = String((e && e.code) || e);
+    $("lerr").textContent = c.includes("permission") ? "Wrong password (or the new Firebase rules haven't been published yet)." : `Couldn't connect: ${c}`;
+  }
+  $("unlock").disabled = false;
+}
+$("unlock").onclick = unlock; $("pw").onkeydown = (e) => { if (e.key === "Enter") unlock(); };
+$("q").oninput = renderList; $("filter").onchange = renderList;
+
+function status(p) { const s = Date.now() - (p.seen || 0); return s < 150000 ? "live" : s < 3600000 ? "recent" : ""; }
+function renderList() {
+  const all = Object.entries(profiles), now = Date.now();
+  $("kAll").textContent = all.length;
+  $("kOnline").textContent = all.filter(([, p]) => now - (p.seen || 0) < 150000).length;
+  $("kMatch").textContent = all.filter(([, p]) => now - (p.seen || 0) < 150000 && /^Playing live/.test(p.doing || "")).length;
+  $("kToday").textContent = all.filter(([, p]) => now - (p.seen || 0) < 864e5).length;
+  const f = $("filter").value, q = $("q").value.trim().toLowerCase();
+  const rows = all.filter(([code, p]) => (f === "all" || (f === "online" ? now - (p.seen || 0) < 150000 : now - (p.seen || 0) < 864e5)) && (!q || `${code} ${p.name} ${p.club}`.toLowerCase().includes(q)))
+    .sort((a, b) => (b[1].seen || 0) - (a[1].seen || 0));
+  $("list").innerHTML = rows.map(([code, p]) => `<button class="pcard ${sel === code ? "on" : ""}" data-code="${esc(code)}"><span class="dot ${status(p)}"></span><span class="crest" style="background:${esc(p.c1 || "#136f43")};color:${lum(p.c1) > 0.6 ? "#111" : "#fff"}">${esc((p.short || "?").slice(0, 3))}</span>
+    <span class="grow"><b>${esc(p.name)}</b> <span class="chip">${p.mode === "career" ? "Player" : "Manager"}</span><div class="small muted ell">${esc(p.doing || "—")}</div><div class="small muted ell">${esc(p.club || "")} · ${esc(p.date || "")} · ${ago(p.seen)}</div></span></button>`).join("") || `<p class="muted">Nobody here${f === "online" ? " right now" : ""}.</p>`;
+  document.querySelectorAll(".pcard").forEach((b) => (b.onclick = () => { sel = b.dataset.code; renderList(); renderDetail(); }));
+}
+
+function renderDetail() {
+  const p = profiles[sel]; if (!p) { $("detail").innerHTML = `<p class="muted">That player is gone.</p>`; return; }
+  const career = p.mode === "career";
+  const kv = [["Friend code", sel], ["Mode", career ? "Player career" : "Manager"], ["Club", `${p.club || "—"} (${p.league || ""})`], ["Season", p.date || p.season], ["Doing", p.doing || "—"], ["Last seen", ago(p.seen)], ["Game version", p.ver || "old"]];
+  if (career) kv.push(["Position / age", `${p.pos || "?"} · ${p.age || "?"}`], ["Overall", p.ovr], ["Goals / apps", `${p.goals || 0} in ${p.apps || 0}`], ["Bank", p.cash != null ? money(p.cash) : "?"], ["Fame", p.fame], ["Public image", p.rep], ["Trophies", p.trophies], ["Retired", p.retired ? "yes" : "no"]);
+  else kv.push(["Transfer budget", p.budget != null ? money(p.budget) : "?"], ["Trophies", p.trophies], ["Board confidence", p.conf]);
+  const evs = EVENT_IDS[career ? "career" : "manager"];
+  const block = (title, body) => `<div class="act"><h3>${title}</h3>${body}</div>`;
+  $("detail").innerHTML = `<h2>${esc(p.name)}</h2><div class="kv" style="margin-top:8px">${kv.map(([k, v]) => `<span class="muted">${esc(k)}</span><span>${esc(v)}</span>`).join("")}</div>
+  <p class="small muted">Changes are queued and happen the next time this save is open on their device.</p>
+  ${block("Message to their inbox", `<input id="mTitle" placeholder="Title"><textarea id="mBody" rows="2" placeholder="Message"></textarea><button data-cmd="msg">Send message</button>`)}
+  ${block(career ? "Money" : "Transfer budget", `<div class="row"><input id="cash" type="number" placeholder="Amount, e.g. 1000000 or -50000" style="flex:1"><button data-cmd="cash">Add</button></div>`)}
+  ${career ? block("Transfer", `<input id="tClub" list="clubs" placeholder="Club name"><div class="row"><input id="tFee" type="number" placeholder="Fee (€)" style="flex:1"><input id="tWage" type="number" placeholder="Wage per week (blank = normal)" style="flex:1"></div><div class="row"><button data-cmd="offer">Send transfer offer</button><button data-cmd="move">Move them now (Here we go!)</button></div>`) : ""}
+  ${career ? block("Player", `<div class="row"><input id="ovr" type="number" placeholder="Overall +/-" style="width:130px"><button data-cmd="ovr">Change overall</button><input id="pot" type="number" placeholder="Potential +/-" style="width:130px"><button data-cmd="pot">Change potential</button></div>
+    <div class="row"><input id="fame" type="number" placeholder="Fame +/-" style="width:130px"><button data-cmd="fame">Change fame & image</button></div>
+    <div class="row"><button data-cmd="heal">Heal injuries</button><input id="inj" type="number" placeholder="Days" style="width:90px"><button data-cmd="injure">Injure</button></div>`) : ""}
+  ${block("Random event", `<div class="row"><select id="ev" style="flex:1">${evs.map((e) => `<option>${e}</option>`).join("")}</select><button data-cmd="event">Trigger</button></div>`)}
+  ${career ? block("Storyline", `<div class="row"><select id="arc" style="flex:1">${Object.entries(ARC_IDS).map(([k, n]) => `<option value="${k}">${esc(n)}</option>`).join("")}</select><button data-cmd="arc">Start</button></div>`) : ""}
+  ${career ? block("Kora post", `<select id="kAcc"><option value="news">Kora News</option><option value="jour">Fabio Ramone (transfers)</option><option value="stats">Kora Stats</option><option value="memes">Kora Memes</option></select><input id="kText" maxlength="280" placeholder="What should the post say?"><button data-cmd="kora">Post to their feed</button>`) : ""}`;
+  document.querySelectorAll("[data-cmd]").forEach((b) => (b.onclick = () => send(b.dataset.cmd, b)));
+}
+const v = (id) => ($(id) ? $(id).value.trim() : "");
+async function send(t, btn) {
+  const a = {
+    msg: { title: v("mTitle"), body: v("mBody") }, cash: { amount: +v("cash") }, offer: { club: v("tClub"), fee: +v("tFee"), wage: +v("tWage") }, move: { club: v("tClub"), fee: +v("tFee"), wage: +v("tWage") },
+    ovr: { delta: +v("ovr") }, pot: { delta: +v("pot") }, fame: { delta: +v("fame") }, heal: {}, injure: { days: +v("inj") }, event: { id: v("ev") }, arc: { id: v("arc") }, kora: { acc: v("kAcc"), text: v("kText") },
+  }[t];
+  if ((t === "offer" || t === "move") && !a.club) return toast("Enter a club name.", true);
+  if (t === "msg" && !a.title && !a.body) return toast("Write a message.", true);
+  if (t === "kora" && !a.text) return toast("Write the post.", true);
+  btn.disabled = true;
+  try { await fs.addDoc(fs.collection(db, "cmds", sel, "q"), { t, a, at: fs.serverTimestamp() }); toast(status(profiles[sel]) === "live" ? "Sent. It should happen within seconds." : "Queued. It happens next time they open this save."); }
+  catch (e) { toast(`Didn't send: ${e.code || e.message}`, true); }
+  btn.disabled = false;
+}
+</script>
+</body>
+</html>
