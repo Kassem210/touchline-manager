@@ -51,3 +51,25 @@ Any other static host works too (Netlify, Cloudflare Pages, Vercel): upload this
 ## Phone (friends and chat)
 
 The Phone page uses Firebase (anonymous sign-in and Firestore). The project settings are in `online.js`, and the security rules are in `firestore.rules`: paste them into Firebase → Firestore Database → Rules and press Publish.
+
+## Touchline Team (the `team/` folder)
+
+A separate web app for real sports teams and clubs (football, basketball, tennis, gymnastics or any other sport). It lives at `/team/` on the same site, e.g. `https://<your-username>.github.io/touchline-manager/team/`.
+
+- **Coaches** see each player's morning check-in (sleep, energy, soreness), meals, workouts and training load, take the register after every session with an optional rating, set plans, send feedback or instructions, update season stats and post notices or match-day squads. Alerts flag low energy, high soreness, missed sessions, players who said they can't make the next session, and instructions nobody has confirmed.
+- **Players** log meals, workouts and a daily check-in, say whether they can make each session, tick off their plan, confirm instructions and see their own attendance, ratings and stats.
+- **Accounts**: email and password through Firebase Authentication, with password reset by email. A coach creates a club and gets a 6-character code and invite link; players sign up and join with it. The club owner can make other members coaches.
+- **Privacy**: players only ever see their own logs, plans, feedback, attendance and ratings. Coaches see everyone's. Ratings, attendance and stats can only be written by coaches. All of this is enforced by `firestore.rules`, not just hidden in the page.
+- There's a demo team on the sign-in page for anyone who wants to look around before signing up.
+
+### Turning it on (one time, in the Firebase console for project `touchline-1adc4`)
+
+1. **Authentication → Sign-in method → Add new provider → Email/Password → Enable → Save.** (Anonymous sign-in stays on for the game.)
+2. **Firestore Database → Rules**: paste the whole of `firestore.rules` (it contains the game's rules plus a "Touchline Team" section), replace `DEV_PASSWORD` as before, then **Publish**.
+3. **Authentication → Settings → Authorized domains**: make sure the domain the site runs on is listed (your `github.io` domain and any custom domain).
+
+Optional: under **Authentication → Templates** you can change the sender name and wording of the password-reset email.
+
+### Data layout
+
+`users/{uid}` (profile and list of clubs), `joinCodes/{code}`, and per club `clubs/{clubId}` with `members`, `sessions`, `announcements`, `registers` (coach only), and per-player `logs`, `plans`, `feedback`, `attendance`, `stats` and `rsvp`, each tagged with the player's `uid`.

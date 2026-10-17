@@ -37,5 +37,76 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow read, delete: if isAdmin() || owns(code);
     }
+      // ---------------- Touchline Team (the /team app for coaches and players) ----------------
+    function tmClub(c) { return /databases/$(database)/documents/clubs/$(c); }
+    function tmMemberPath(c) { return /databases/$(database)/documents/clubs/$(c)/members/$(request.auth.uid); }
+    function tmMember(c) { return signedIn() && exists(tmMemberPath(c)); }
+    function tmCoach(c) { return tmMember(c) && get(tmMemberPath(c)).data.role == 'coach'; }
+    function tmOwner(c) { return signedIn() && get(tmClub(c)).data.ownerUid == request.auth.uid; }
+    function tmOwnDoc(c) { return tmMember(c) && resource.data.uid == request.auth.uid; }
+    function tmMine(c) { return tmMember(c) && request.resource.data.uid == request.auth.uid; }
+
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+    match /joinCodes/{code} {
+      allow get: if signedIn();
+      allow create: if tmCoach(request.resource.data.club);
+      allow delete: if tmCoach(resource.data.club);
+    }
+    match /clubs/{c} {
+      allow read: if tmMember(c);
+      allow create: if signedIn() && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if tmCoach(c) && request.resource.data.ownerUid == resource.data.ownerUid
+        && (request.resource.data.joinCode == resource.data.joinCode || tmOwner(c));
+      allow delete: if tmOwner(c);
+
+      match /members/{uid} {
+        allow read: if tmMember(c);
+        // the owner adds themself as head coach; everyone else joins as a player with a valid code
+        allow create: if signedIn() && uid == request.auth.uid && request.resource.data.uid == uid && (
+          (request.resource.data.role == 'coach' && tmOwner(c))
+          || (request.resource.data.role == 'player' && request.resource.data.code is string
+              && exists(/databases/$(database)/documents/joinCodes/$(request.resource.data.code))
+              && get(/databases/$(database)/documents/joinCodes/$(request.resource.data.code)).data.club == c));
+        // players edit their own name, number and position; coaches edit anyone; only the owner changes roles
+        allow update: if request.resource.data.uid == resource.data.uid && (
+          (uid == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'number', 'position']))
+          || (tmCoach(c) && (request.resource.data.role == resource.data.role
+              || (tmOwner(c) && uid != request.auth.uid && request.resource.data.role in ['coach', 'player']))));
+        allow delete: if (uid == request.auth.uid && !tmOwner(c))
+          || (tmCoach(c) && resource.data.role == 'player')
+          || (tmOwner(c) && uid != request.auth.uid);
+      }
+      match /sessions/{id} { allow read: if tmMember(c); allow write: if tmCoach(c); }
+      match /announcements/{id} { allow read: if tmMember(c); allow write: if tmCoach(c); }
+      match /registers/{id} { allow read, write: if tmCoach(c); }
+
+      // private per-player data: the player and the club's coaches can read it
+      match /logs/{id} {
+        allow read: if tmCoach(c) || tmOwnDoc(c);
+        allow create: if tmMine(c) && id == request.auth.uid + '_' + request.resource.data.date;
+        allow update: if tmMine(c) && tmOwnDoc(c);
+        allow delete: if tmOwnDoc(c);
+      }
+      match /rsvp/{id} {
+        allow read: if tmCoach(c) || tmOwnDoc(c);
+        allow create: if tmMine(c) && id == request.resource.data.sid + '_' + request.auth.uid;
+        allow update: if tmMine(c) && tmOwnDoc(c);
+        allow delete: if tmOwnDoc(c);
+      }
+      match /plans/{id} {
+        allow read: if tmCoach(c) || tmOwnDoc(c);
+        allow create, delete: if tmCoach(c);
+        allow update: if tmCoach(c) || (tmOwnDoc(c) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ticks']));
+      }
+      match /feedback/{id} {
+        allow read: if tmCoach(c) || tmOwnDoc(c);
+        allow create, delete: if tmCoach(c);
+        allow update: if tmCoach(c) || (tmOwnDoc(c) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ack']) && request.resource.data.ack == true);
+      }
+      match /attendance/{id} { allow read: if tmCoach(c) || tmOwnDoc(c); allow write: if tmCoach(c); }
+      match /stats/{id} { allow read: if tmCoach(c) || (tmMember(c) && id == request.auth.uid); allow write: if tmCoach(c); }
+    }
   }
 }
