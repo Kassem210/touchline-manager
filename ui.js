@@ -773,6 +773,7 @@ PAGES.career = () => {
       <div class="row"><button class="btn" data-a="mgrTalk" data-k="time">Ask for more playing time</button><button class="btn" data-a="mgrTalk" data-k="feedback">Ask for feedback</button><button class="btn" data-a="mgrTalk" data-k="complain">Complain about being dropped</button><button class="btn" data-a="mgrTalk" data-k="captain">Ask to be captain</button></div>
       <div class="row"><select id="posReq" aria-label="Position">${POS_NEAR[p.pos].filter((x) => x !== "GK").map((x) => `<option>${x}</option>`).join("")}</select><button class="btn" data-a="mgrTalk" data-k="position" ${POS_NEAR[p.pos].length ? "" : "disabled"}>Ask to play there</button></div>
       <h4 style="margin-top:6px">Club</h4><div class="row"><button class="btn" data-a="creq" data-v="list" ${p.loan ? "disabled" : ""}>${p.listed ? "Withdraw transfer request" : "Hand in a transfer request"}</button><button class="btn" data-a="creq" data-v="contract" ${p.loan ? "disabled" : ""}>Ask for a new contract</button><button class="btn" data-a="creq" data-v="loan" ${p.loan ? "disabled" : ""}>${p.loan ? "On loan from " + esc(club(p.loan.from).name) : "Ask to go out on loan"}</button>${(() => { const b = boyhoodClub(); return b && b.id !== p.club ? `<button class="btn" data-a="creq" data-v="home" ${p.loan ? "disabled" : ""}>Ask to return to ${esc(b.name)}</button>` : ""; })()}</div>
+      ${p.club >= 0 ? `<div class="row"><span class="small muted">Shirt number</span><input type="number" id="shirtNum" min="1" max="99" value="${shirtNum(p)}" style="width:70px" aria-label="Shirt number"><button class="btn sm" data-a="setNum">Change</button></div>` : ""}
       <p class="small muted" style="margin:0">Clubs only come in for you every couple of seasons, unless you hand in a transfer request or your agent goes looking.</p></div>
       <div class="panel stack"><div class="panel-h"><h3>Agent</h3><span class="chip ${ag.id ? "gold" : ""}">${esc(ag.n)}</span></div>
       ${ag.id ? `<div class="small">${esc(ag.d)} Fee: ${Math.round(ag.fee * 100)}% of wages. Better wages (+${Math.round(ag.wage * 100)}%), more offers, bigger boot deals.</div><div class="row"><button class="btn" data-a="agentAct" data-k="search">${cr.agentSearch ? "Stop looking for a move" : "Find me a new club"}</button><button class="btn" data-a="agentAct" data-k="contract">Negotiate a new contract</button></div>` : `<div class="small muted">An agent negotiates better wages, brings more transfer offers and bigger sponsorship deals, for a cut of your wages.</div>`}
@@ -1067,6 +1068,47 @@ MODALS.hwg = (t) => {
     <div class="hwg-text">HERE WE GO!</div>
     <div class="hwg-sub">${esc(to.name)}${t.fee ? ` · ${money(t.fee)}` : " · free transfer"} · until ${(t.ce || G.season + 3) + 1} ✅</div>
     <div class="small" style="opacity:.75;margin-top:10px">@${esc(JOURNALIST.handle)} · tap to close</div>
+  </div></div>`;
+};
+// ---------- matchday walk-out ----------
+const NUM_BY_POS = { GK: 1, RB: 2, LB: 3, CB: 4, DM: 6, RW: 7, CM: 8, ST: 9, AM: 10, LW: 11 };
+function shirtNum(p) {
+  const C = G.career; C.nums = C.nums || {};
+  const key = p.club >= 0 ? p.club : "fa";
+  if (!C.nums[key]) { const c = p.club >= 0 ? club(p.club) : null, star = !c || p.o >= c.rep - 3; C.nums[key] = star ? NUM_BY_POS[p.pos] || 9 : (NUM_BY_POS[p.pos] || 9) + 20 + ri(0, 2) * 10; }
+  return C.nums[key];
+}
+function shirtSVG(c, name, num) {
+  const tc = lum(c.c1) > 0.6 ? "#111" : c.c2 === c.c1 ? "#fff" : c.c2;
+  return `<svg viewBox="0 0 120 120" class="wo-shirt" aria-label="Your shirt"><path d="M38 10 L20 18 L4 44 L22 54 L28 44 L28 112 L92 112 L92 44 L98 54 L116 44 L100 18 L82 10 Q60 22 38 10Z" fill="${c.c1}" stroke="rgba(0,0,0,.35)" stroke-width="2"/><path d="M38 10 Q60 22 82 10" fill="none" stroke="${c.c2}" stroke-width="4"/>
+  <text x="60" y="44" text-anchor="middle" font-family="Saira Condensed, Impact, sans-serif" font-weight="800" font-size="${name.length > 9 ? 11 : 14}" fill="${tc}" letter-spacing="1">${esc(name.toUpperCase())}</text>
+  <text x="60" y="96" text-anchor="middle" font-family="Saira Condensed, Impact, sans-serif" font-weight="800" font-size="46" fill="${tc}">${num}</text></svg>`;
+}
+MODALS.walkout = (m) => {
+  const f = G.fx[m.f], me = pl(G.userPlayer), C = G.career;
+  const myId = userTeamOf(f), mine = club(myId), opp = club(f.h === myId ? f.a : f.h), home = f.h === myId;
+  const big = bigMatchInfo(f), legend = !f.nt && typeof legendHere === "function" && legendHere();
+  const rv = typeof rivalOf === "function" ? rivalOf() : null, rivalThere = rv && rv.club === opp.id;
+  const xi = (mine.xi && mine.xi.length === 11 ? mine.xi : autoLineup(mine).xi).filter((id) => id != null && pl(id));
+  const starting = xi.includes(me.id);
+  const derby = /^(Al Ahly|Zamalek)$/.test(mine.name) && /^(Al Ahly|Zamalek)$/.test(opp.name) ? "THE CAIRO DERBY" : null;
+  const fm = me.form.length ? avg(me.form.slice(-4)) : 6.5;
+  const chant = legend ? `♪ There's only one ${me.ln}! ♪` : rivalThere ? `♪ ${me.ln.toUpperCase()} > ${rv.ln.toUpperCase()} ♪` : f.nt ? `♪ ${mine.name.toUpperCase()}! ${mine.name.toUpperCase()}! ♪` : home ? `♪ Come on ${mine.name}! ♪` : `♪ Away days with ${mine.name}! ♪`;
+  const mood = !starting ? "You're on the bench today. Be ready." : big && fm < 6.4 ? "The crowd is restless. You need a big game." : fm >= 7.1 ? "You're flying. The fans expect something special." : big ? "Huge occasion. Breathe. Enjoy it." : "Another chance to show what you can do.";
+  const flashes = Array.from({ length: big ? 26 : 12 }, (_, i) => `<i class="wo-flash" style="left:${(i * 37) % 100}%;top:${(i * 53) % 60}%;animation-delay:${((i * 0.37) % 2.4).toFixed(2)}s"></i>`).join("");
+  const flares = big || derby ? Array.from({ length: 6 }, (_, i) => `<i class="wo-flare" style="left:${8 + i * 16}%;animation-delay:${(i * 0.3).toFixed(1)}s;background:${i % 2 ? mine.c1 : "#ff4d00"}"></i>`).join("") : "";
+  const mates = xi.filter((id) => id !== me.id).slice(0, 10).map((id, i) => `<span class="wo-mate" style="animation-delay:${(0.5 + i * 0.08).toFixed(2)}s">${faceHTML(pl(id), 34)}</span>`).join("");
+  return `<div class="scrim walkout"><div class="wo" role="dialog" aria-modal="true" aria-label="Matchday walk-out">
+    <div class="wo-tunnel">${flashes}${flares}<div class="wo-light"></div></div>
+    <div class="wo-top">${derby ? `<span class="chip gold">${derby}</span>` : big ? `<span class="chip gold">⚡ ${esc(big)}</span>` : ""}<div class="small">${esc(compName(f.c))}${f.s ? ` · ${esc(f.s)}` : ""}</div></div>
+    <div class="wo-teams"><span class="wo-crest wo-l">${crest(club(f.h), 64)}</span><span class="wo-vs">VS</span><span class="wo-crest wo-r">${crest(club(f.a), 64)}</span></div>
+    <div class="wo-mid"><div class="wo-shirtwrap">${shirtSVG(mine, me.ln, f.nt ? NUM_BY_POS[me.pos] || 9 : shirtNum(me))}</div>
+      <div class="wo-info"><div class="wo-chant">${esc(chant)}</div><div class="wo-mood">${esc(mood)}</div>
+      ${rivalThere ? `<div class="small">😤 Your rival <b>${esc(fullName(rv))}</b> is in the other tunnel.</div>` : ""}
+      ${legend ? `<div class="small">⭐ The fans have a banner with your face on it.</div>` : ""}
+      <div class="small" style="opacity:.8">Form ${fm.toFixed(1)} · ${starting ? "Starting XI" : "Substitute"}</div></div></div>
+    <div class="wo-mates">${mates}</div>
+    <div class="wo-actions"><label class="small row" style="gap:6px;color:#fff"><input type="checkbox" data-c="walkSkip" ${C.noWalk ? "checked" : ""}>Only show walk-outs for big matches</label><button class="btn pri go" data-a="walkOut" data-id="${f.i}">Walk out ➜</button></div>
   </div></div>`;
 };
 MODALS.season = (m) => {
@@ -1385,7 +1427,10 @@ A.creq = (el) => { toast(careerRequest(el.dataset.v)); render(); };
 A.retireAsk = () => openModal("confirm", { title: "Retire from football?", text: "Your career ends here. The save stays so you can look back at your record.", yes: "Retire", danger: true, then: () => { retireUser(); render(); autosave(); } });
 A.pmTactics = () => { closeModal(); UI.page = "tactics"; render(); };
 A.quickSim = (el) => { closeModal(); afterUserMatch(playFixture(G.fx[+el.dataset.id])); };
-A.playLive = (el) => { startLive(+el.dataset.id); };
+A.playLive = (el) => { const fi = +el.dataset.id; if (G.mode === "career" && G.career && !(G.career.noWalk && !bigMatchInfo(G.fx[fi]))) openModal("walkout", { f: fi }); else startLive(fi); };
+A.walkOut = (el) => { startLive(+el.dataset.id); };
+
+A.setNum = () => { const i = document.getElementById("shirtNum"), n = Math.round(+(i && i.value)); if (!(n >= 1 && n <= 99)) { toast("Pick a number from 1 to 99."); return; } const p = pl(G.userPlayer); G.career.nums = G.career.nums || {}; G.career.nums[p.club] = n; toast(`You'll wear number ${n}.`); render(); autosave(); };
 A.lvMent = (el) => { const L = UI.live, s = L.m.sides.find((x) => x.user); s.ment = +el.dataset.v; club(s.cid).ment = s.ment; calcStrength(L.m); renderLive(true); };
 A.lvSub = () => { const L = UI.live, m = L.m, s = m.sides.findIndex((x) => x.user); if (!L.subOut || !L.subIn) { toast("Choose who comes off and who goes on."); return; } if (doSub(m, s, +L.subOut, +L.subIn)) { L.subOut = ""; L.subIn = ""; } renderLive(true); };
 A.lvPause = () => { const L = UI.live; L.paused = !L.paused; runTimer(); };
@@ -1709,6 +1754,7 @@ CH.compLg = (el) => { UI.comp.lg = el.value; render(); };
 CH.compCup = (el) => { UI.comp.cup = el.value; render(); };
 CH.ts = (el) => { const k = el.dataset.k; UI.ts[k] = el.type === "checkbox" ? el.checked : el.value; UI.ts.pg = 0; const id = el.id; render(); if (id && el.type !== "checkbox" && el.tagName === "INPUT") { const n = document.getElementById(id); if (n) { n.focus(); try { n.setSelectionRange(n.value.length, n.value.length); } catch (e) {} } } };
 CH.gName = (el) => { G.name = el.value.trim() || G.name; autosave(); };
+CH.walkSkip = (el) => { G.career.noWalk = el.checked; autosave(); };
 CH.igCapPick = (el) => { UI.igCap = el.value; const i = document.getElementById("igCap"); if (i) i.value = el.value; };
 CH.igCapType = (el) => { UI.igCap = el.value; };
 CH.lvOut = (el) => { UI.live.subOut = el.value; };
@@ -1725,7 +1771,7 @@ document.addEventListener("keydown", (ev) => { if (ev.key === "Enter" && ev.targ
 
 
 // ---------- self-update (hosted site) ----------
-const BUILD = "202610151850";
+const BUILD = "202610171200";
 async function checkForUpdate() {
   if (typeof IN_CLAUDE !== "undefined" && IN_CLAUDE) return;
   if (!location.protocol.startsWith("http")) return;

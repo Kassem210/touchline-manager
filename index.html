@@ -132,6 +132,36 @@ main { padding: 20px 22px 60px; min-width: 0; }
 @keyframes hwgstamp { 0% { transform: rotate(-6deg) scale(3); opacity: 0; } 100% { transform: rotate(-6deg) scale(1); opacity: 1; } }
 .hwg-sub { margin-top: 14px; font-weight: 600; animation: hwgfade .4s both 1.5s; }
 @media (prefers-reduced-motion: reduce) { .hwg-stamp.anim, .hwg-siren, .hwg-from, .hwg-to, .hwg-arrow, .hwg-name, .hwg-text, .hwg-sub { animation: none !important; } }
+.scrim.walkout { display: flex; align-items: center; justify-content: center; background: #05070c; }
+.wo { position: relative; width: min(760px, 100%); max-height: 100%; overflow: auto; color: #fff; padding: 18px 16px 20px; text-align: center; }
+.wo-tunnel { position: fixed; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 38%, #f5f3d8 0%, #9fb4c7 9%, #24324a 30%, #0a0f1a 62%); z-index: -1; animation: wozoom 3.2s ease-out both; }
+.wo-tunnel::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 46px, rgba(255,255,255,.04) 46px 48px); }
+@keyframes wozoom { from { transform: scale(1.35); filter: brightness(.4); } to { transform: scale(1); filter: brightness(1); } }
+.wo-light { position: absolute; left: 50%; top: 34%; width: 40%; height: 30%; transform: translate(-50%, -50%); background: radial-gradient(#fff 0, #fff0 70%); opacity: .55; animation: wopulse 2.4s ease-in-out infinite alternate; }
+@keyframes wopulse { to { opacity: .85; } }
+.wo-flash { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 0 0 14px 6px #fff; opacity: 0; animation: woflash 2.4s infinite; }
+@keyframes woflash { 0%, 86%, 100% { opacity: 0; } 90% { opacity: 1; } }
+.wo-flare { position: absolute; bottom: -20px; width: 60px; height: 120px; border-radius: 50%; filter: blur(22px); opacity: .55; animation: woflare 1.6s ease-in-out infinite alternate; }
+@keyframes woflare { from { transform: translateY(10px) scale(.9); opacity: .35; } to { transform: translateY(-14px) scale(1.15); opacity: .7; } }
+.wo-top { animation: wofade .5s both .2s; } .wo-top .chip { margin-bottom: 6px; }
+.wo-teams { display: flex; align-items: center; justify-content: center; gap: 22px; margin: 10px 0 6px; }
+.wo-vs { font-family: var(--f-display); font-weight: 900; font-size: 1.8rem; animation: wofade .4s both .9s; }
+.wo-l { animation: woinl .6s ease-out both .3s; } .wo-r { animation: woinr .6s ease-out both .45s; }
+@keyframes woinl { from { transform: translateX(-90px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes woinr { from { transform: translateX(90px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes wofade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.wo-mid { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; margin: 6px 0; }
+.wo-shirtwrap { animation: woshirt .9s cubic-bezier(.2,1.4,.4,1) both 1s; filter: drop-shadow(0 12px 22px rgba(0,0,0,.6)); }
+.wo-shirt { width: 150px; height: 150px; display: block; }
+@keyframes woshirt { from { transform: translateY(40px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+.wo-info { max-width: 330px; text-align: left; display: flex; flex-direction: column; gap: 6px; animation: wofade .5s both 1.4s; }
+.wo-chant { font-family: var(--f-display); font-weight: 800; font-size: 1.35rem; color: #ffd60a; animation: wochant 1.2s ease-in-out infinite alternate; }
+@keyframes wochant { from { transform: scale(1); } to { transform: scale(1.05); } }
+.wo-mood { font-weight: 600; }
+.wo-mates { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+.wo-mate { animation: wofade .5s both; } .wo-mate .face { border: 2px solid #fff8; }
+.wo-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; animation: wofade .5s both 1.8s; }
+@media (prefers-reduced-motion: reduce) { .wo *, .wo-tunnel { animation: none !important; opacity: 1 !important; } }
 .igprof { display: flex; gap: 18px; align-items: center; margin-bottom: 16px; }
 .igcounts { gap: 16px; margin: 6px 0; }
 .iggrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
@@ -344,19 +374,19 @@ table.t td.c, table.t th.c { text-align: center; }
 </head>
 <body>
 <div id="app"><div class="loading">Loading Touchline…</div></div>
-<script src="data.js?v=202610151850"></script>
-<script src="real.js?v=202610151850"></script>
-<script src="engine.js?v=202610151850"></script>
-<script src="world.js?v=202610151850"></script>
-<script src="progress.js?v=202610151850"></script>
-<script src="ads.js?v=202610151850"></script>
-<script src="career.js?v=202610151850"></script>
-<script src="events.js?v=202610151850"></script>
-<script src="drama.js?v=202610151850"></script>
-<script src="invest.js?v=202610151850"></script>
-<script src="social.js?v=202610151850"></script>
-<script src="online.js?v=202610151850"></script>
-<script src="match.js?v=202610151850"></script>
-<script src="ui.js?v=202610151850"></script>
+<script src="data.js?v=202610171200"></script>
+<script src="real.js?v=202610171200"></script>
+<script src="engine.js?v=202610171200"></script>
+<script src="world.js?v=202610171200"></script>
+<script src="progress.js?v=202610171200"></script>
+<script src="ads.js?v=202610171200"></script>
+<script src="career.js?v=202610171200"></script>
+<script src="events.js?v=202610171200"></script>
+<script src="drama.js?v=202610171200"></script>
+<script src="invest.js?v=202610171200"></script>
+<script src="social.js?v=202610171200"></script>
+<script src="online.js?v=202610171200"></script>
+<script src="match.js?v=202610171200"></script>
+<script src="ui.js?v=202610171200"></script>
 </body>
 </html>
